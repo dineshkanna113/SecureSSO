@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Register</title>
+    <link rel="stylesheet" th:href="@{/css/netflix.css}">
+    <script>
+        async function checkUsernameAvailabilityReg() {
+            const usernameInput = document.getElementById('reg-username');
+            const warn = document.getElementById('reg-username-warn');
+            const submitBtn = document.getElementById('reg-submit');
+            const username = usernameInput.value.trim();
+            if (!username) {
+                warn.style.display = 'none';
+                submitBtn.disabled = true;
+                return;
+            }
+            try {
+                const res = await fetch(`/api/users/exists?username=${encodeURIComponent(username)}`);
+                const data = await res.json();
+                if (data.exists) {
+                    warn.innerText = 'Username already exists. Please choose another.';
+                    warn.style.display = 'block';
+                    submitBtn.disabled = true;
+                } else {
+                    warn.style.display = 'none';
+                    validateForm();
+                }
+            } catch (e) {
+                warn.style.display = 'none';
+                validateForm();
+            }
+        }
+        function scorePassword(pw) {
+            if (!pw) return 0;
+            let score = 0;
+            const variations = {
+                digits: /\d/.test(pw),
+                lower: /[a-z]/.test(pw),
+                upper: /[A-Z]/.test(pw),
+                nonWords: /[^\w]/.test(pw)
+            };
+            let variationCount = 0;
+            for (const k in variations) variationCount += variations[k] ? 1 : 0;
+            score += variationCount * 10;
+            score += Math.min(10, Math.floor(pw.length / 2) * 5);
+            return Math.min(100, score);
+        }
+        function updateStrength() {
+            const pw = document.getElementById('reg-password').value;
+            const bar = document.getElementById('pw-bar');
+            const label = document.getElementById('pw-label');
+            const score = scorePassword(pw);
+            bar.style.width = `${score}%`;
+            if (score < 30) { bar.style.background = '#b81d24'; label.innerText = 'Weak'; }
+            else if (score < 60) { bar.style.background = '#e67e22'; label.innerText = 'Medium'; }
+            else { bar.style.background = '#2ecc71'; label.innerText = 'Strong'; }
+            validateForm();
+        }
+        function togglePassword(id, eyeId) {
+            const input = document.getElementById(id);
+            const eye = document.getElementById(eyeId);
+            if (input.type === 'password') { input.type = 'text'; eye.innerText = '🙈'; }
+            else { input.type = 'password'; eye.innerText = '👁️'; }
+        }
+        function validateForm() {
+            const username = document.getElementById('reg-username').value.trim();
+            const email = document.getElementById('reg-email').value.trim();
+            const pw = document.getElementById('reg-password').value;
+            const cpw = document.getElementById('reg-confirm').value;
+            const warnUser = document.getElementById('reg-username-warn');
+            const warnCpw = document.getElementById('reg-confirm-warn');
+            const submitBtn = document.getElementById('reg-submit');
+            const emailOk = /.+@.+\..+/.test(email);
+            const cpwOk = pw && cpw && pw === cpw;
+            warnCpw.style.display = cpw && !cpwOk ? 'block' : 'none';
+            const ready = username && emailOk && cpwOk && warnUser.style.display !== 'block';
+            submitBtn.disabled = !ready;
+        }
+        let debounceU;
+        function onUserInput() { clearTimeout(debounceU); debounceU = setTimeout(checkUsernameAvailabilityReg, 250); }
+        function onEmailInput() { validateForm(); }
+        function onConfirmInput() { validateForm(); }
+        function onLoadInit() { validateForm(); }
+        document.addEventListener('DOMContentLoaded', onLoadInit);
+    </script>
+</head>
+<body class="nf-body">
+<div class="nf-header">Create your account</div>
+<div class="nf-container" style="max-width:520px;margin:auto;">
+    <form class="nf-form" th:action="@{/register}" method="post" th:object="${user}">
+        <label>Username</label>
+        <input id="reg-username" type="text" th:field="*{username}" required oninput="onUserInput()">
+        <div id="reg-username-warn" style="display:none;color:#e74c3c;margin-top:6px;">Username already exists. Please choose another.</div>
+
+        <label>Email</label>
+        <input id="reg-email" type="email" th:field="*{email}" required oninput="onEmailInput()">
+
+        <label>Password</label>
+        <div style="position:relative;">
+            <input id="reg-password" type="password" th:field="*{password}" required oninput="updateStrength()">
+            <button type="button" id="pw-eye" onclick="togglePassword('reg-password','pw-eye')" class="nf-eye">👁️</button>
+        </div>
+        <div class="nf-pw-meter"><div id="pw-bar" class="nf-pw-bar"></div></div>
+        <div id="pw-label" class="nf-pw-label">Weak</div>
+
+        <label>Confirm Password</label>
+        <div style="position:relative;">
+            <input id="reg-confirm" type="password" required oninput="onConfirmInput()">
+            <button type="button" id="cpw-eye" onclick="togglePassword('reg-confirm','cpw-eye')" class="nf-eye">👁️</button>
+        </div>
+        <div id="reg-confirm-warn" style="display:none;color:#e74c3c;margin-top:6px;">Passwords do not match.</div>
+
+        <div class="nf-actions">
+            <button id="reg-submit" class="nf-button" type="submit" disabled>Create Account</button>
+            <a class="nf-button nf-secondary" th:href="@{/login}">Back to Login</a>
+        </div>
+    </form>
+</div>
+</body>
+</html>

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>JWT Test</title>
+    <link rel="stylesheet" th:href="@{/css/netflix.css}">
+</head>
+<body class="nf-body">
+<div class="nf-header">JWT Test</div>
+<div class="nf-container">
+    <div class="nf-card nf-form">
+        <div th:if="${error}" style="background:#b81d24;color:#fff;padding:10px 14px;border-radius:6px;margin-bottom:12px;" th:text="${error}"></div>
+        <p th:if="${hasCert}" style="color:#aaa;">Certificate detected. Paste a JWT to verify signature.</p>
+        <p th:if="${!hasCert}" style="color:#aaa;">No certificate uploaded. Signature verification may be skipped.</p>
+        <form th:action="@{/test/sso/jwt/verify}" method="post">
+            <input type="hidden" name="providerId" th:value="${providerId}">
+            <label>JWT Token</label>
+            <textarea name="token" rows="6" placeholder="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...."></textarea>
+            <div class="nf-actions" style="margin-top:10px;">
+                <button class="nf-button" type="submit">Verify</button>
+                <a class="nf-button nf-secondary" href="#" onclick="window.close(); return false;">Close</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="nf-card" th:if="${success}">
+        <h2>Verification <span th:text="${verified} ? 'Succeeded' : 'Completed'"></span></h2>
+        <p th:if="${verified}" style="color:#2ecc71;">Signature verified with uploaded certificate.</p>
+        <p th:if="${!verified}" style="color:#bbb;">Claims decoded. Signature verification may be skipped if no certificate.</p>
+        <h3>Header</h3>
+        <pre style="white-space:pre-wrap; color:#ccc; background:#1a1a1a; padding:10px; border-radius:6px;" th:text="${header}"></pre>
+        <h3>Claims</h3>
+        <pre style="white-space:pre-wrap; color:#ccc; background:#1a1a1a; padding:10px; border-radius:6px;" th:text="${claims}"></pre>
+    </div>
+</div>
+</body>
+</html>
+
+
+
+

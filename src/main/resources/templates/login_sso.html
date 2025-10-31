@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Login with SSO</title>
+    <link rel="stylesheet" th:href="@{/css/netflix.css}">
+    <style>.prov-list{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));}</style>
+    <script>
+        async function loadProviders(){
+            const res = await fetch('/api/sso/providers');
+            const list = await res.json();
+            const wrap = document.getElementById('providers');
+            wrap.innerHTML = '';
+            if(!Array.isArray(list) || list.length===0){
+                const p = document.createElement('div');
+                p.className='nf-card';
+                p.innerText='No custom providers added yet. Using default buttons below.';
+                wrap.appendChild(p);
+                return;
+            }
+            const grid = document.createElement('div');
+            grid.className = 'prov-list';
+            list.forEach(pr=>{
+                const btn = document.createElement('button');
+                btn.className = 'nf-button';
+                btn.type='button';
+                btn.innerText = (pr.type||'') + ' - ' + (pr.name||'Provider');
+                btn.onclick = ()=> activateAndStart(pr);
+                grid.appendChild(btn);
+            });
+            wrap.appendChild(grid);
+        }
+        async function activateAndStart(pr){
+            const res = await fetch(`/api/sso/providers/${pr.id}/activate`, {method:'POST'});
+            if(!res.ok){ alert('Unable to activate provider'); return; }
+            if((pr.type||'').toUpperCase()==='OIDC'){
+                window.location.href = '/sso/oauth2/authorize';
+            } else if((pr.type||'').toUpperCase()==='SAML'){
+                window.location.href = '/sso/saml2/authenticate';
+            } else {
+                window.location.href = '/saml2/authenticate/okta';
+            }
+        }
+        window.addEventListener('load', loadProviders);
+    </script>
+</head>
+<body class="nf-body">
+<div class="nf-header">Choose SSO Provider</div>
+<div class="nf-container">
+    <div id="providers" class="nf-card" style="margin-bottom:16px;">Loading providers…</div>
+    <div class="nf-protocols">
+        <a class="nf-button" href="/oauth2/authorization/okta">JWT (Okta OIDC)</a>
+        <a class="nf-button nf-secondary" href="/saml2/authenticate/okta">SAML (Okta)</a>
+        <a class="nf-button nf-secondary" th:href="@{/login(native=1)}">Login with Default</a>
+    </div>
+</div>
+</body>
+</html>
+
+

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Access Denied</title>
+    <link rel="stylesheet" th:href="@{/css/netflix.css}">
+</head>
+<body class="nf-body">
+<div class="nf-header">Access Denied</div>
+<div class="nf-container">
+    <div id="accessDeniedModal" class="nf-modal" style="display: flex;">
+        <div class="nf-modal-content">
+            <div class="nf-modal-header">Authorization Required</div>
+            <div class="nf-modal-body">
+                <p>You do not have permission to view this page.</p>
+                <p><strong>Contact Your admin for assistance.</strong></p>
+            </div>
+            <div class="nf-modal-actions">
+                <a class="nf-button" th:href="@{/user/dashboard}">Go to Dashboard</a>
+                <a class="nf-button nf-secondary" th:href="@{/logout}">Logout</a>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

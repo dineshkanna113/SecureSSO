@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>SSO Test Result</title>
+    <link rel="stylesheet" th:href="@{/css/netflix.css}">
+</head>
+<body class="nf-body">
+<div class="nf-header">SSO Test Result</div>
+<div class="nf-container">
+    <div class="nf-card">
+        <h2 th:text="${testProtocol} + ' Test Successful'"></h2>
+        <p><strong>NameID / Username:</strong> <span th:text="${nameId}"></span></p>
+        <div th:if="${attributes}">
+            <h3>Attributes</h3>
+            <table class="nf-table">
+                <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                <tbody>
+                <tr th:each="entry : ${attributes}">
+                    <td th:text="${entry.key}"></td>
+                    <td th:text="${entry.value}"></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="nf-actions">
+            <button class="nf-button" onclick="window.close()">Close</button>
+        </div>
+    </div>
+</div>
+</body>
+</html>
+
+
+
+

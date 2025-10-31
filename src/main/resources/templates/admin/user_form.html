@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>User Form</title>
+    <link rel="stylesheet" th:href="@{/css/netflix.css}">
+    <script>
+        async function checkUsernameAvailability() {
+            const usernameInput = document.getElementById('username');
+            const warn = document.getElementById('username-warn');
+            const saveBtn = document.getElementById('save-btn');
+            const userIdEl = document.getElementById('userId');
+            const excludeId = userIdEl ? userIdEl.value : '';
+            const username = usernameInput.value.trim();
+            if (!username) {
+                warn.style.display = 'none';
+                saveBtn.disabled = false;
+                return;
+            }
+            try {
+                const res = await fetch(`/api/users/exists?username=${encodeURIComponent(username)}${excludeId ? `&excludeId=${excludeId}` : ''}`);
+                const data = await res.json();
+                if (data.exists) {
+                    warn.style.display = 'block';
+                    saveBtn.disabled = true;
+                } else {
+                    warn.style.display = 'none';
+                    saveBtn.disabled = false;
+                }
+            } catch (e) {
+                // In case of API error, do not block form, but show soft warning
+                warn.style.display = 'none';
+                saveBtn.disabled = false;
+            }
+        }
+        let debounceTimer;
+        function debouncedUsernameCheck() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(checkUsernameAvailability, 250);
+        }
+    </script>
+</head>
+<body class="nf-body">
+<div class="nf-header">User</div>
+<div class="nf-container">
+    <form class="nf-form" th:action="${user.id} != null ? @{'/admin/users/' + ${user.id}} : @{/admin/users}" method="post" th:object="${user}">
+        <input type="hidden" id="userId" th:value="${user.id}" />
+        <div th:if="${error}" style="background:#b81d24;color:#fff;padding:8px 12px;border-radius:4px;margin-bottom:10px;">[[${error}]]</div>
+        <label>Username</label>
+        <input id="username" type="text" th:field="*{username}" required oninput="debouncedUsernameCheck()">
+        <div id="username-warn" style="display:none;color:#e74c3c;margin-top:6px;">Username already exists. Please choose another.</div>
+        <label>Password</label>
+        <input type="password" th:field="*{password}" th:placeholder="${user.id == null} ? '' : 'Leave blank to keep'" />
+        <label>Email</label>
+        <input type="email" th:field="*{email}">
+        <label>First Name</label>
+        <input type="text" th:field="*{firstName}">
+        <label>Last Name</label>
+        <input type="text" th:field="*{lastName}">
+        <label>Role</label>
+        <select th:field="*{role}">
+            <option value="ROLE_USER">ROLE_USER</option>
+            <option value="ROLE_ADMIN">ROLE_ADMIN</option>
+        </select>
+        <label>Enabled</label>
+        <select th:field="*{enabled}">
+            <option th:value="true">true</option>
+            <option th:value="false">false</option>
+        </select>
+        <div class="nf-actions">
+            <button id="save-btn" class="nf-button" type="submit">Save</button>
+            <a class="nf-button nf-secondary" th:href="@{/admin/dashboard}">Cancel</a>
+        </div>
+    </form>
+</div>
+</body>
+</html>
+
+

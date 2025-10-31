@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" th:href="@{/css/netflix.css}">
+    <script th:src="@{/js/dashboard.js}"></script>
+</head>
+<body class="nf-body">
+<div class="nf-header">Admin Dashboard</div>
+
+<div class="nf-container">
+    <div class="nf-actions" style="margin-top:0;">
+        <a class="nf-button nf-secondary" th:href="@{/user/dashboard}">Back</a>
+    </div>
+    <div th:if="${error}" style="background:#b81d24;color:#fff;padding:10px 14px;border-radius:6px;margin-bottom:12px;">[[${error}]]</div>
+    <div class="nf-section">
+        <h2>User Management</h2>
+        <div class="nf-actions">
+            <a class="nf-button" th:href="@{/admin/users/new}">Add New User</a>
+        </div>
+        <table class="nf-table">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Email</th>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>Role</th>
+                <th>Enabled</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="u : ${users}">
+                <td th:text="${u.id}"></td>
+                <td th:text="${u.username}"></td>
+                <td th:text="${u.email}"></td>
+                <td th:text="${u.firstName}"></td>
+                <td th:text="${u.lastName}"></td>
+                <td th:text="${u.role}"></td>
+                <td><span th:text="${u.enabled} ? 'Yes' : 'No'"></span></td>
+                <td>
+                    <a class="nf-button nf-secondary" th:href="@{'/admin/users/' + ${u.id} + '/edit'}">Edit</a>
+                    <form th:action="@{'/admin/users/' + ${u.id} + '/delete'}" method="post" style="display:inline" onsubmit="return confirm('Delete this user?');">
+                        <button class="nf-button nf-danger" type="submit">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="nf-section">
+        <h2>SSO Configuration</h2>
+        <div class="nf-toggle-row">
+            <button type="button" class="nf-button" th:classappend="${config.ssoEnabled} ? ' nf-success' : ' nf-secondary'" th:text="${config.ssoEnabled} ? 'Disable SSO' : 'Enable SSO'" onclick="nf.toggleSSO()"></button>
+            <span class="nf-badge" th:text="${config.ssoEnabled} ? 'ON' : 'OFF'"></span>
+        </div>
+
+        <div th:if="${config.ssoEnabled}" class="nf-protocols">
+            <button type="button" class="nf-button" onclick="nf.openModal('oidcModal')">OIDC</button>
+            <button type="button" class="nf-button nf-secondary" onclick="nf.openModal('samlModal')">SAML</button>
+            <button type="button" class="nf-button nf-secondary" onclick="nf.openModal('addSsoModal')">Add SSO Provider</button>
+        </div>
+
+        <div id="oidcModal" class="nf-modal" style="display:none">
+            <div class="nf-modal-content">
+                <div class="nf-modal-header">OIDC Configuration</div>
+                <div class="nf-modal-body">
+                    <input type="hidden" id="saveProviderId" value="" />
+                    <label>Client ID</label>
+                    <input id="oidcClientId" type="text" th:value="${@environment.getProperty('spring.security.oauth2.client.registration.okta.client-id')}">
+                    <label>Client Secret</label>
+                    <input id="oidcClientSecret" type="password" th:value="${@environment.getProperty('spring.security.oauth2.client.registration.okta.client-secret')}">
+                    <label>Redirect URI</label>
+                    <input id="oidcRedirectUri" type="text" th:value="${@environment.getProperty('spring.security.oauth2.client.registration.okta.redirect-uri')}">
+                    <label>Issuer URL</label>
+                    <input id="oidcIssuerUri" type="text" th:value="${@environment.getProperty('spring.security.oauth2.client.provider.okta.issuer-uri')}">
+                    <label>Scopes (comma separated)</label>
+                    <input id="oidcScopes" type="text" th:value="${@environment.getProperty('spring.security.oauth2.client.registration.okta.scope')}">
+                </div>
+                <div class="nf-modal-actions">
+                    <button class="nf-button" onclick="nf.saveOIDC()">Save</button>
+                    <button class="nf-button nf-secondary" onclick="nf.closeModal('oidcModal')">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="samlModal" class="nf-modal" style="display:none">
+            <div class="nf-modal-content">
+                <div class="nf-modal-header">SAML Configuration</div>
+                <div class="nf-modal-body">
+                    <label>Entity ID</label>
+                    <input id="samlEntityId" type="text" th:value="${@environment.getProperty('spring.security.saml2.relyingparty.registration.okta.entity-id')}">
+                    <label>SSO URL</label>
+                    <input id="samlSsoUrl" type="text" th:value="${@environment.getProperty('spring.security.saml2.relyingparty.registration.okta.assertingparty.sso-url')}">
+                    <label>X.509 Certificate</label>
+                    <textarea id="samlX509Cert" rows="4"></textarea>
+                    <label>Metadata XML</label>
+                    <textarea id="samlMetadataXml" rows="6"></textarea>
+                    <label>Metadata URL</label>
+                    <input id="samlMetadataUrl" type="text" placeholder="https://idp.example.com/metadata" />
+                </div>
+                <div class="nf-modal-actions">
+                    <button class="nf-button" onclick="nf.saveSAML()">Save</button>
+                    <button class="nf-button nf-secondary" onclick="nf.closeModal('samlModal')">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="addSsoModal" class="nf-modal" style="display:none">
+            <div class="nf-modal-content">
+                <div class="nf-modal-header">Add SSO Provider</div>
+                <div class="nf-modal-body nf-form">
+                    <div class="nf-card" style="margin-bottom:10px;">
+                        <div style="font-weight:700; margin-bottom:6px;">Provider Details</div>
+                        <small style="color:#aaa; display:block; margin-bottom:8px;">Give it a clear name and choose the type.</small>
+                        <label>Provider Name</label>
+                        <input id="newProviderName" type="text" placeholder="MyCompany Okta / AzureAD / Auth0 / miniOrange">
+                        <label>Type</label>
+                        <select id="newProviderType" onchange="onTypeChange(this.value)">
+                        <option value="OIDC">OIDC / OAuth2</option>
+                        <option value="SAML">SAML</option>
+                        <option value="JWT">JWT</option>
+                        </select>
+                    </div>
+                    <div id="newOidcFields" class="nf-card" style="margin-top:10px;">
+                        <div style="font-weight:700; margin-bottom:6px;">OIDC / OAuth2</div>
+                        <small style="color:#aaa; display:block; margin-bottom:8px;">Typical for Okta/AzureAD/Auth0. Use the app registration values.</small>
+                        <label>Client ID</label>
+                        <input id="newOidcClientId" type="text">
+                        <label>Client Secret</label>
+                        <input id="newOidcClientSecret" type="password">
+                        <label>Issuer URL</label>
+                        <input id="newOidcIssuerUri" type="text" placeholder="https://idp.example.com/oauth2/default">
+                        <label>Redirect URI</label>
+                        <input id="newOidcRedirectUri" type="text" th:value="${@environment.getProperty('spring.security.oauth2.client.registration.okta.redirect-uri')}">
+                        <label>Scopes (comma separated)</label>
+                        <input id="newOidcScopes" type="text" value="openid,profile,email">
+                        <div class="nf-grid">
+                            <div>
+                                <label>Authorization Endpoint (optional)</label>
+                                <input id="newOidcAuthz" type="text">
+                            </div>
+                            <div>
+                                <label>Token Endpoint (optional)</label>
+                                <input id="newOidcToken" type="text">
+                            </div>
+                            <div>
+                                <label>User Info Endpoint (optional)</label>
+                                <input id="newOidcUserInfo" type="text">
+                            </div>
+                            <div>
+                                <label>Logout Endpoint (optional)</label>
+                                <input id="newOidcLogout" type="text">
+                            </div>
+                        </div>
+                    </div>
+                    <div id="newSamlFields" class="nf-card" style="display:none;margin-top:10px;">
+                        <div style="font-weight:700; margin-bottom:6px;">SAML</div>
+                        <small style="color:#aaa; display:block; margin-bottom:10px;">Use any ONE of the options below to configure SAML.</small>
+
+                        <div class="nf-card" style="margin-bottom:10px;">
+                            <div style="font-weight:600;">Option 1 — Import from Metadata URL</div>
+                            <label>Metadata URL</label>
+                            <input id="newSamlMetadataUrl" type="text" placeholder="https://idp.example.com/metadata">
+                            <div class="nf-actions" style="margin-top:8px;">
+                                <button class="nf-button nf-secondary" type="button" onclick="importMetadataUrl()">Import</button>
+                            </div>
+                        </div>
+
+                        <div style="text-align:center; color:#777; margin:6px 0;">— or —</div>
+
+                        <div class="nf-card" style="margin-bottom:10px;">
+                            <div style="font-weight:600;">Option 2 — Upload Metadata XML</div>
+                            <label class="nf-button" style="display:inline-block; cursor:pointer; margin-top:8px;">
+                                Upload XML
+                                <input type="file" accept=".xml" style="display:none" onchange="importMetadataFile(this)">
+                            </label>
+                        </div>
+
+                        <div style="text-align:center; color:#777; margin:6px 0;">— or —</div>
+
+                        <div class="nf-card">
+                            <div style="font-weight:600;">Option 3 — Enter Manually</div>
+                            <label>IdP Entity ID / Issuer</label>
+                            <input id="newSamlEntityId" type="text">
+                            <label>SAML Login URL</label>
+                            <input id="newSamlSsoUrl" type="text">
+                            <label>X.509 Certificate</label>
+                            <textarea id="newSamlX509Cert" rows="4"></textarea>
+                        </div>
+
+                        <small style="color:#aaa; display:block; margin-top:6px;">miniOrange: use your tenant metadata URL or download the XML from their dashboard.</small>
+                    </div>
+                    <div id="newJwtFields" class="nf-card" style="display:none;margin-top:10px;">
+                        <div style="font-weight:700; margin-bottom:6px;">JWT</div>
+                        <small style="color:#aaa; display:block; margin-bottom:8px;">For APIs issuing JWTs. Use JWKS URI or upload a signing certificate (miniOrange).</small>
+                        <label>Issuer</label>
+                        <input id="newJwtIssuer" type="text">
+                        <label>Audience</label>
+                        <input id="newJwtAudience" type="text">
+                        <label>JWKS URI</label>
+                        <input id="newJwtJwksUri" type="text" placeholder="https://example.com/.well-known/jwks.json">
+                        <div style="text-align:center; color:#777; margin:6px 0;">— or —</div>
+                        <label>Certificate (PEM)</label>
+                        <textarea id="newJwtCertificate" rows="5" placeholder="-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"></textarea>
+                        <div class="nf-actions" style="margin-top:8px;">
+                            <label class="nf-button" style="display:inline-block; cursor:pointer;">
+                                Upload Certificate
+                                <input type="file" accept=".pem,.crt,.cer,.txt" style="display:none" onchange="uploadJwtCert(this)">
+                            </label>
+                        </div>
+                        <label>Header Name</label>
+                        <input id="newJwtHeaderName" type="text" value="Authorization">
+                    </div>
+                </div>
+                <div class="nf-modal-actions">
+                    <button class="nf-button" onclick="saveProvider()">Save</button>
+                    <button class="nf-button nf-secondary" onclick="nf.closeModal('addSsoModal')">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="nf-section">
+        <h2>SSO Providers</h2>
+        <div class="nf-actions">
+            <button class="nf-button" onclick="nf.openModal('addSsoModal')">Add SSO Provider</button>
+            <button class="nf-button nf-secondary" onclick="loadProviders()">Refresh</button>
+        </div>
+        <table class="nf-table" id="providersTable">
+            <thead>
+            <tr>
+                <th>ID</th><th>Name</th><th>Type</th><th>Actions</th>
+            </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+</div>
+
+<script>
+function onTypeChange(v){
+    document.getElementById('newOidcFields').style.display = v==='OIDC'?'block':'none';
+    document.getElementById('newSamlFields').style.display = v==='SAML'?'block':'none';
+    document.getElementById('newJwtFields').style.display = v==='JWT'?'block':'none';
+}
+async function loadProviders(){
+    const tbody = document.querySelector('#providersTable tbody');
+    tbody.innerHTML = `<tr><td colspan="4">Loading...</td></tr>`;
+    try {
+        const res = await fetch('/api/sso/providers');
+        if(!res.ok) throw new Error('Failed to load providers');
+        const list = await res.json();
+        const activeRes = await fetch('/api/sso/providers/active');
+        const activeIds = await activeRes.json().catch(()=>[]);
+        tbody.innerHTML = '';
+        if(!Array.isArray(list) || list.length===0){
+            tbody.innerHTML = `<tr><td colspan=\"4\">No providers found</td></tr>`;
+            return;
+        }
+        list.forEach(p=>{
+            const tr = document.createElement('tr');
+            const isActive = Array.isArray(activeIds) ? activeIds.includes(p.id) : false;
+            tr.innerHTML = `<td>${p.id}</td><td>${p.name||''}</td><td>${p.type||''}</td>
+            <td>
+                ${isActive ? `<button class='nf-button nf-success' disabled>Activated</button>` : `<button class='nf-button' onclick='activateProvider(${p.id})'>Activate</button>`}
+                ${isActive ? `<button class='nf-button nf-secondary' onclick='deactivateProvider(${p.id})'>Deactivate</button>` : ''}
+                <button class='nf-button nf-secondary' onclick='editProvider(${p.id})'>Edit</button>
+                <button class='nf-button nf-danger' onclick='deleteProvider(${p.id})'>Delete</button>
+                <button class='nf-button' onclick='testProvider(${p.id})'>Test</button>
+            </td>`;
+            tbody.appendChild(tr);
+        });
+    } catch(e){
+        tbody.innerHTML = `<tr><td colspan=\"4\">Error: ${e.message}</td></tr>`;
+    }
+}
+async function deleteProvider(id){
+    if(!confirm('Delete this provider?')) return;
+    const res = await fetch(`/api/sso/providers/${id}`, {method:'DELETE'});
+    if(res.ok) loadProviders();
+}
+async function activateProvider(id){
+    const res = await fetch(`/api/sso/providers/${id}/activate`, {method:'POST'});
+    if(res.ok) { loadProviders(); }
+}
+async function deactivateProvider(id){
+    const res = await fetch(`/api/sso/providers/${id}/deactivate`, {method:'POST'});
+    if(res.ok) { loadProviders(); }
+}
+function editProvider(id){
+    fetch(`/api/sso/providers/${id}`).then(r=>r.json()).then(p=>{
+        document.getElementById('addSsoModal').style.display='flex';
+        document.getElementById('newProviderName').value = p.name||'';
+        document.getElementById('newProviderType').value = p.type||'OIDC';
+        onTypeChange(p.type||'OIDC');
+        // OIDC
+        document.getElementById('newOidcClientId').value = p.oidcClientId||'';
+        document.getElementById('newOidcClientSecret').value = p.oidcClientSecret||'';
+        document.getElementById('newOidcIssuerUri').value = p.oidcIssuerUri||'';
+        document.getElementById('newOidcRedirectUri').value = p.oidcRedirectUri||'';
+        document.getElementById('newOidcScopes').value = p.oidcScopes||'';
+        document.getElementById('newOidcAuthz').value = p.oidcAuthorizationEndpoint||'';
+        document.getElementById('newOidcToken').value = p.oidcTokenEndpoint||'';
+        document.getElementById('newOidcUserInfo').value = p.oidcUserInfoEndpoint||'';
+        document.getElementById('newOidcLogout').value = p.oidcLogoutEndpoint||'';
+        // SAML
+        document.getElementById('newSamlEntityId').value = p.samlEntityId||'';
+        document.getElementById('newSamlSsoUrl').value = p.samlSsoUrl||'';
+        document.getElementById('newSamlX509Cert').value = p.samlX509Cert||'';
+        document.getElementById('newSamlMetadataUrl').value = p.samlMetadataUrl||'';
+        // JWT
+        if (document.getElementById('newJwtIssuer')) {
+            document.getElementById('newJwtIssuer').value = p.jwtIssuer||'';
+            document.getElementById('newJwtAudience').value = p.jwtAudience||'';
+            document.getElementById('newJwtJwksUri').value = p.jwtJwksUri||'';
+            document.getElementById('newJwtHeaderName').value = p.jwtHeaderName||'Authorization';
+        }
+        document.getElementById('saveProviderId').value = id;
+    });
+}
+async function testProvider(id){
+    const res = await fetch(`/api/sso/providers/${id}/test`);
+    if(!res.ok) return;
+    const data = await res.json();
+    if(data.type==='OIDC' && data.authorizeUrl){ window.open(data.authorizeUrl, '_blank'); }
+    else if(data.type==='SAML' && (data.startUrl||data.ssoUrl)){ window.open(data.startUrl||data.ssoUrl, '_blank'); }
+    else if(data.type==='JWT'){ window.open(`/test/sso/jwt?providerId=${id}`, '_blank'); }
+}
+async function saveProvider(){
+    const id = document.getElementById('saveProviderId').value;
+    const type = document.getElementById('newProviderType').value;
+    const name = document.getElementById('newProviderName').value.trim();
+    if(!name){ alert('Provider name is required'); return; }
+    const chk = await fetch(`/api/sso/providers/check-name?name=${encodeURIComponent(name)}${id?`&excludeId=${id}`:''}`);
+    if(chk.status===409){ alert('Provider name already exists'); return; }
+    const body = { name, type };
+    if(type==='OIDC'){
+        body.oidcClientId = document.getElementById('newOidcClientId').value;
+        body.oidcClientSecret = document.getElementById('newOidcClientSecret').value;
+        body.oidcIssuerUri = document.getElementById('newOidcIssuerUri').value;
+        body.oidcRedirectUri = document.getElementById('newOidcRedirectUri').value;
+        body.oidcScopes = document.getElementById('newOidcScopes').value;
+        body.oidcAuthorizationEndpoint = document.getElementById('newOidcAuthz').value;
+        body.oidcTokenEndpoint = document.getElementById('newOidcToken').value;
+        body.oidcUserInfoEndpoint = document.getElementById('newOidcUserInfo').value;
+        body.oidcLogoutEndpoint = document.getElementById('newOidcLogout').value;
+    } else if(type==='SAML') {
+        body.samlEntityId = document.getElementById('newSamlEntityId').value;
+        body.samlSsoUrl = document.getElementById('newSamlSsoUrl').value;
+        body.samlX509Cert = document.getElementById('newSamlX509Cert').value;
+        body.samlMetadataUrl = document.getElementById('newSamlMetadataUrl').value;
+    } else if(type==='JWT') {
+        body.jwtIssuer = document.getElementById('newJwtIssuer').value;
+        body.jwtAudience = document.getElementById('newJwtAudience').value;
+        body.jwtJwksUri = document.getElementById('newJwtJwksUri').value;
+        body.jwtHeaderName = document.getElementById('newJwtHeaderName').value;
+        body.jwtCertificate = document.getElementById('newJwtCertificate').value;
+    }
+    const res = await fetch(id?`/api/sso/providers/${id}`:'/api/sso/providers', { method: id?'PUT':'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    if(res.status===409){ alert('Provider name already exists'); return; }
+    if(res.ok){ document.getElementById('saveProviderId').value=''; nf.closeModal('addSsoModal'); loadProviders(); }
+}
+window.addEventListener('DOMContentLoaded', loadProviders);
+async function importMetadataUrl(){
+    const url = document.getElementById('newSamlMetadataUrl').value.trim();
+    if(!url) return;
+    const res = await fetch(`/api/sso/providers/metadata/fetch?url=${encodeURIComponent(url)}`);
+    if(res.ok){ const data = await res.json();
+        document.getElementById('newSamlEntityId').value = data.samlEntityId||'';
+        document.getElementById('newSamlSsoUrl').value = data.samlSsoUrl||'';
+        document.getElementById('newSamlX509Cert').value = data.samlX509Cert||'';
+    }
+}
+async function importMetadataFile(inp){
+    if(!inp.files || !inp.files[0]) return;
+    const fd = new FormData();
+    fd.append('file', inp.files[0]);
+    const res = await fetch('/api/sso/providers/metadata/upload', { method:'POST', body:fd });
+    if(res.ok){ const data = await res.json();
+        document.getElementById('newSamlEntityId').value = data.samlEntityId||'';
+        document.getElementById('newSamlSsoUrl').value = data.samlSsoUrl||'';
+        document.getElementById('newSamlX509Cert').value = data.samlX509Cert||'';
+    }
+}
+
+async function uploadJwtCert(inp){
+    if(!inp.files || !inp.files[0]) return;
+    const fd = new FormData();
+    fd.append('file', inp.files[0]);
+    const res = await fetch('/api/sso/providers/jwt/upload-cert', { method:'POST', body:fd });
+    if(res.ok){ const data = await res.json();
+        if(data.jwtCertificate){ document.getElementById('newJwtCertificate').value = data.jwtCertificate; }
+    }
+}
+</script>
+
+</body>
+</html>
+
+

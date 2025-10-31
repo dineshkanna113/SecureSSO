@@ -1,0 +1,91 @@
+body.nf-body {
+	margin: 0;
+	background-color: #141414;
+	color: #fff;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 22px; /* Increased base font size for better readability */
+}
+.nf-header {
+	padding: 20px 32px;
+	font-size: 30px; /* Slightly larger header */
+	font-weight: 700;
+	background: linear-gradient(180deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.5) 100%);
+	border-bottom: 1px solid #333;
+}
+.nf-container {
+	padding: 24px 32px;
+}
+.nf-section { margin-bottom: 32px; }
+.nf-actions { margin: 12px 0; }
+.nf-button {
+	background-color: #e50914;
+	border: none;
+	color: white;
+	padding: 10px 16px;
+	text-decoration: none;
+	cursor: pointer;
+	border-radius: 4px;
+	margin-right: 8px;
+}
+.nf-secondary { background-color: #333; }
+.nf-danger { background-color: #b81d24; }
+.nf-success { background-color: #2ecc71; }
+.nf-badge {
+	background-color: #333;
+	padding: 6px 10px;
+	border-radius: 12px;
+	margin-left: 10px;
+}
+.nf-table { width: 100%; border-collapse: collapse; }
+.nf-table th, .nf-table td { border-bottom: 1px solid #333; padding: 10px; text-align: left; }
+.nf-table th { color: #aaa; font-weight: 600; }
+
+.nf-form { max-width: 520px; }
+.nf-form label { display: block; margin-top: 12px; color: #bbb; }
+.nf-form input, .nf-form select {
+	width: 100%;
+	padding: 12px;
+	margin-top: 6px;
+	background-color: #1e1e1e;
+	border: 1px solid #333;
+	color: #fff;
+	border-radius: 6px;
+	outline: none;
+	transition: border-color .2s ease, box-shadow .2s ease;
+}
+.nf-form input:focus, .nf-form select:focus { border-color: #e50914; box-shadow: 0 0 0 3px rgba(229,9,20,0.2); }
+
+.nf-eye {
+	position: absolute;
+	right: 10px;
+	top: 50%;
+	transform: translateY(-50%);
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	font-size: 16px;
+	color: #bbb;
+}
+
+.nf-pw-meter { background:#2a2a2a; height:6px; border-radius:4px; margin-top:8px; }
+.nf-pw-bar { height:6px; width:0; border-radius:4px; background:#b81d24; transition: width .25s ease, background .25s ease; }
+.nf-pw-label { color:#aaa; margin-top:6px; font-size:12px; }
+
+/* Center form container nicely */
+.nf-container .nf-form { background:#141414; padding:16px; border-radius:8px; border:1px solid #2b2b2b; }
+
+.nf-card { background-color: #1a1a1a; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
+.nf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.nf-tile { background-color: #1f1f1f; height: 120px; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #aaa; }
+
+.nf-toggle-row { display: flex; align-items: center; gap: 12px; }
+.nf-protocols { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; max-width: 200px; }
+
+.nf-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; }
+.nf-modal-content { background: #1a1a1a; padding: 20px; border-radius: 8px; width: 90%; max-width: 520px; }
+.nf-modal-header { font-weight: 700; margin-bottom: 10px; }
+.nf-modal-body { color: #ddd; }
+.nf-modal-actions { text-align: right; margin-top: 16px; }
+.nf-config div { margin: 6px 0; color: #ccc; }
+
+
