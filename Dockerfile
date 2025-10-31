@@ -1,14 +1,33 @@
-# Step 1: Use an official JDK base image
-FROM eclipse-temurin:17-jdk
+# Multi-stage build: Stage 1 - Build
+FROM eclipse-temurin:21-jdk AS build
 
-# Step 2: Set the working directory inside the container
 WORKDIR /app
 
-# Step 3: Copy the built jar from the local target folder to the container
-COPY target/ssolog-0.0.1-SNAPSHOT.jar app.jar
+# Copy Maven wrapper and pom.xml
+COPY mvnw* .
+COPY pom.xml .
+# Copy .mvn directory if it exists (Maven wrapper will download it if missing)
+COPY .mvn .mvn
 
-# Step 4: Expose port 8080 (Spring Boot default)
+# Make mvnw executable and download dependencies (cached layer if pom.xml doesn't change)
+RUN chmod +x ./mvnw && ./mvnw dependency:go-offline -B
+
+# Copy source code
+COPY src ./src
+
+# Build the application
+RUN ./mvnw clean package -DskipTests
+
+# Stage 2: Runtime
+FROM eclipse-temurin:21-jre
+
+WORKDIR /app
+
+# Copy the built JAR from build stage
+COPY --from=build /app/target/ssolog-0.0.1-SNAPSHOT.jar app.jar
+
+# Expose port 8080
 EXPOSE 8080
 
-# Step 5: Command to run the jar
+# Run the application
 ENTRYPOINT ["java", "-jar", "app.jar"]
