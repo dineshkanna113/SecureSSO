@@ -10,9 +10,11 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URL;
 import java.util.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @RestController
 @RequestMapping("/api/sso/providers")
@@ -77,6 +79,10 @@ public class SSOProviderController {
             existing.setJwtJwksUri(p.getJwtJwksUri());
             existing.setJwtHeaderName(p.getJwtHeaderName());
             existing.setJwtCertificate(p.getJwtCertificate());
+            existing.setJwtSsoUrl(p.getJwtSsoUrl());
+            existing.setJwtClientId(p.getJwtClientId());
+            existing.setJwtClientSecret(p.getJwtClientSecret());
+            existing.setJwtRedirectUri(p.getJwtRedirectUri());
             try {
                 return ResponseEntity.ok(repo.save(existing));
             } catch (RuntimeException ex) {
@@ -156,6 +162,67 @@ public class SSOProviderController {
         }
     }
 
+    @GetMapping("/oidc/discovery")
+    public Map<String, Object> fetchOidcDiscovery(@RequestParam String url) throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        try (InputStream in = new URL(url).openStream()) {
+            Map<String, Object> config = mapper.readValue(new InputStreamReader(in, java.nio.charset.StandardCharsets.UTF_8), 
+                new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+            
+            Map<String, Object> result = new HashMap<>();
+            
+            // Extract issuer
+            if (config.containsKey("issuer")) {
+                result.put("oidcIssuerUri", config.get("issuer"));
+            }
+            
+            // Extract authorization endpoint
+            if (config.containsKey("authorization_endpoint")) {
+                result.put("oidcAuthorizationEndpoint", config.get("authorization_endpoint"));
+            }
+            
+            // Extract token endpoint
+            if (config.containsKey("token_endpoint")) {
+                result.put("oidcTokenEndpoint", config.get("token_endpoint"));
+            }
+            
+            // Extract userinfo endpoint
+            if (config.containsKey("userinfo_endpoint")) {
+                result.put("oidcUserInfoEndpoint", config.get("userinfo_endpoint"));
+            }
+            
+            // Extract logout endpoint
+            if (config.containsKey("end_session_endpoint")) {
+                result.put("oidcLogoutEndpoint", config.get("end_session_endpoint"));
+            }
+            
+            // Extract supported scopes (use first few common ones if available)
+            if (config.containsKey("scopes_supported")) {
+                @SuppressWarnings("unchecked")
+                List<String> scopes = (List<String>) config.get("scopes_supported");
+                if (scopes != null && !scopes.isEmpty()) {
+                    // Build scope string with common OIDC scopes
+                    StringBuilder scopeStr = new StringBuilder();
+                    for (String scope : scopes) {
+                        if (scope.equals("openid") || scope.equals("profile") || scope.equals("email")) {
+                            if (scopeStr.length() > 0) scopeStr.append(" ");
+                            scopeStr.append(scope);
+                        }
+                    }
+                    if (scopeStr.length() > 0) {
+                        result.put("oidcScopes", scopeStr.toString());
+                    } else {
+                        result.put("oidcScopes", "openid profile email");
+                    }
+                }
+            } else {
+                result.put("oidcScopes", "openid profile email");
+            }
+            
+            return result;
+        }
+    }
+
     private Map<String,Object> parseSamlMetadata(InputStream in) throws Exception {
         var doc = DocumentBuilderFactory.newInstance();
         doc.setNamespaceAware(true);
@@ -181,18 +248,18 @@ public class SSOProviderController {
     public ResponseEntity<?> testProvider(@PathVariable Long id) {
         return repo.findById(id).map(p -> {
             if ("OIDC".equalsIgnoreCase(p.getType())) {
-                String auth = Optional.ofNullable(p.getOidcAuthorizationEndpoint()).orElse("");
-                String clientId = Optional.ofNullable(p.getOidcClientId()).orElse("");
-                String redirect = Optional.ofNullable(p.getOidcRedirectUri()).orElse("");
-                String scope = Optional.ofNullable(p.getOidcScopes()).orElse("openid profile email");
-                String state = UUID.randomUUID().toString();
-                String url = String.format("%s?response_type=code&client_id=%s&redirect_uri=%s&scope=%s&state=%s",
-                        auth, encode(clientId), encode(redirect), encode(scope), encode(state));
-                return ResponseEntity.ok(Map.of("type", "OIDC", "authorizeUrl", url));
+                String url = "/test/sso/oidc?providerId=" + p.getId();
+                return ResponseEntity.ok(Map.of("type", "OIDC", "startUrl", url));
             } else if ("SAML".equalsIgnoreCase(p.getType())) {
                 String url = "/test/sso/saml?providerId=" + p.getId();
                 return ResponseEntity.ok(Map.of("type", "SAML", "startUrl", url));
             } else { // JWT
+                // Check if JWT SSO URL is configured (miniOrange style)
+                if (p.getJwtSsoUrl() != null && !p.getJwtSsoUrl().isBlank()) {
+                    String url = "/test/sso/jwt?providerId=" + p.getId();
+                    return ResponseEntity.ok(Map.of("type", "JWT", "startUrl", url, "flow", "sso"));
+                }
+                // Otherwise check JWKS or certificate
                 boolean ok = false;
                 try {
                     if (p.getJwtJwksUri() != null && !p.getJwtJwksUri().isBlank()) {
@@ -203,7 +270,8 @@ public class SSOProviderController {
                     }
                 } catch (Exception ignored) {}
                 boolean certOk = p.getJwtCertificate() != null && !p.getJwtCertificate().isBlank();
-                return ResponseEntity.ok(Map.of("type", "JWT", "jwksOk", ok, "certOk", certOk));
+                String url = "/test/sso/jwt/manual?providerId=" + p.getId();
+                return ResponseEntity.ok(Map.of("type", "JWT", "jwksOk", ok, "certOk", certOk, "flow", "verify", "startUrl", url));
             }
         }).orElse(ResponseEntity.notFound().build());
     }

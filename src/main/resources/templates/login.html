@@ -37,9 +37,24 @@
 <div th:if="${param.error}" class="nf-modal-mask">
     <div class="nf-modal-card">
         <div class="nf-modal-header">Login Failed</div>
-        <div class="nf-modal-body">Invalid username or password. Please try again.</div>
+        <div class="nf-modal-body">
+            <span th:if="${param.error[0] == 'jwt_sso_url_required'}">
+                JWT SSO URL is required for JWT login. Please configure SSO URL for this JWT provider in the admin dashboard.
+            </span>
+            <span th:if="${param.error[0] == 'jwt_client_id_missing'}">
+                JWT Client ID is required. Please configure Client ID for this JWT provider in the admin dashboard.
+            </span>
+            <span th:if="${param.error[0] == 'jwt_provider_not_found'}">
+                JWT provider not found. Please check your configuration.
+            </span>
+            <span th:if="${param.error[0] != 'jwt_sso_url_required' && param.error[0] != 'jwt_client_id_missing' && param.error[0] != 'jwt_provider_not_found'}">
+                Invalid username or password. Please try again.
+            </span>
+        </div>
         <div class="nf-modal-actions" style="text-align:right; margin-top:12px;">
             <a class="nf-button" th:href="@{/login}">Close</a>
+            <a th:if="${param.error[0] == 'jwt_sso_url_required' || param.error[0] == 'jwt_client_id_missing'}" 
+               class="nf-button nf-secondary" th:href="@{/admin/dashboard}" style="margin-left:8px;">Go to Admin</a>
         </div>
     </div>
 </div>

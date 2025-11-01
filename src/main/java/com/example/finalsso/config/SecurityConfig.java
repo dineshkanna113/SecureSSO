@@ -37,7 +37,7 @@ public class SecurityConfig {
         http
                 .csrf().disable()
                 .authorizeHttpRequests(auth -> auth
-                        .antMatchers("/register", "/css/**", "/js/**", "/images/**", "/login", "/login/sso", "/sso/oauth2/authorize", "/sso/oauth2/callback", "/sso/saml2/authenticate", "/sso/saml2/acs").permitAll()
+                        .antMatchers("/register", "/css/**", "/js/**", "/images/**", "/login", "/login/sso", "/sso/oauth2/authorize", "/sso/oauth2/callback", "/sso/saml2/authenticate", "/sso/saml2/acs", "/sso/jwt/authenticate", "/sso/jwt/callback", "/sso/jwt/login", "/sso/jwt/verify", "/test/sso/jwt", "/test/sso/jwt/**", "/test/sso/oidc", "/test/jwt/result").permitAll()
                         .antMatchers(HttpMethod.GET, "/api/sso/providers/**").permitAll()
                         .antMatchers("/api/**", "/admin/**").hasRole("ADMIN")
                         .antMatchers("/user/**").hasAnyRole("USER", "ADMIN")

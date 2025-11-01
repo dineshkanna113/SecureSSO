@@ -116,45 +116,62 @@
                     <div class="nf-card" style="margin-bottom:10px;">
                         <div style="font-weight:700; margin-bottom:6px;">Provider Details</div>
                         <small style="color:#aaa; display:block; margin-bottom:8px;">Give it a clear name and choose the type.</small>
-                        <label>Provider Name</label>
+                    <label>Provider Name</label>
                         <input id="newProviderName" type="text" placeholder="MyCompany Okta / AzureAD / Auth0 / miniOrange">
-                        <label>Type</label>
+                    <label>Type</label>
                         <select id="newProviderType" onchange="onTypeChange(this.value)">
                         <option value="OIDC">OIDC / OAuth2</option>
                         <option value="SAML">SAML</option>
                         <option value="JWT">JWT</option>
-                        </select>
+                    </select>
                     </div>
-                    <div id="newOidcFields" class="nf-card" style="margin-top:10px;">
-                        <div style="font-weight:700; margin-bottom:6px;">OIDC / OAuth2</div>
-                        <small style="color:#aaa; display:block; margin-bottom:8px;">Typical for Okta/AzureAD/Auth0. Use the app registration values.</small>
-                        <label>Client ID</label>
+                    <div id="newOidcFields" class="nf-card" style="display:none;margin-top:10px;">
+                        <p class="nf-card-title">OIDC / OAuth2 Configuration</p>
+                        <p class="nf-card-text">Use the discovery URL to auto-import configuration, or enter details manually.</p>
+
+                        <div class="nf-form-group">
+                            <label><strong>Option 1: Import from Discovery URL (Recommended)</strong></label>
+                            <label>OIDC Discovery URL</label>
+                            <input id="newOidcDiscoveryUrl" type="text" placeholder="https://kanna.xecurify.com/moas/discovery/v2.0/{CLIENT_ID}/.well-known/openid-configuration">
+                            <div class="nf-actions" style="margin-top:8px;">
+                                <button class="nf-button nf-secondary" type="button" onclick="importOidcDiscovery()">Import from Discovery URL</button>
+                            </div>
+                            <small style="color:#aaa; display:block; margin-top:6px;">miniOrange: Use your discovery URL with Client ID, e.g., <code>https://kanna.xecurify.com/moas/discovery/v2.0/{CLIENT_ID}/.well-known/openid-configuration</code></small>
+                        </div>
+
+                        <div class="nf-or-divider">— or —</div>
+
+                        <div class="nf-form-group">
+                            <label><strong>Option 2: Enter Manually</strong></label>
+                            <label>Client ID *</label>
                         <input id="newOidcClientId" type="text">
-                        <label>Client Secret</label>
+                            <label>Client Secret *</label>
                         <input id="newOidcClientSecret" type="password">
-                        <label>Issuer URL</label>
-                        <input id="newOidcIssuerUri" type="text" placeholder="https://idp.example.com/oauth2/default">
-                        <label>Redirect URI</label>
-                        <input id="newOidcRedirectUri" type="text" th:value="${@environment.getProperty('spring.security.oauth2.client.registration.okta.redirect-uri')}">
-                        <label>Scopes (comma separated)</label>
-                        <input id="newOidcScopes" type="text" value="openid,profile,email">
-                        <div class="nf-grid">
-                            <div>
-                                <label>Authorization Endpoint (optional)</label>
-                                <input id="newOidcAuthz" type="text">
+                            <label>Redirect URI (Callback URL)</label>
+                            <input id="newOidcRedirectUri" type="text" placeholder="http://localhost:8080/sso/oauth2/callback">
+                            <label>Issuer URL</label>
+                            <input id="newOidcIssuerUri" type="text" placeholder="https://kanna.xecurify.com/moas/discovery/v2.0/{CLIENT_ID}">
+                            <label>Scopes</label>
+                            <input id="newOidcScopes" type="text" value="openid profile email" placeholder="openid profile email">
+                            <div class="nf-grid">
+                                <div>
+                                    <label>Authorization Endpoint (optional)</label>
+                        <input id="newOidcAuthz" type="text">
+                                </div>
+                                <div>
+                                    <label>Token Endpoint (optional)</label>
+                        <input id="newOidcToken" type="text">
+                                </div>
+                                <div>
+                                    <label>User Info Endpoint (optional)</label>
+                        <input id="newOidcUserInfo" type="text">
+                                </div>
+                                <div>
+                                    <label>Logout Endpoint (optional)</label>
+                        <input id="newOidcLogout" type="text">
+                    </div>
                             </div>
-                            <div>
-                                <label>Token Endpoint (optional)</label>
-                                <input id="newOidcToken" type="text">
-                            </div>
-                            <div>
-                                <label>User Info Endpoint (optional)</label>
-                                <input id="newOidcUserInfo" type="text">
-                            </div>
-                            <div>
-                                <label>Logout Endpoint (optional)</label>
-                                <input id="newOidcLogout" type="text">
-                            </div>
+                            <small style="color:#aaa; display:block; margin-top:6px;">If left empty, endpoints will be auto-detected from Issuer URL or discovery configuration.</small>
                         </div>
                     </div>
                     <div id="newSamlFields" class="nf-card" style="display:none;margin-top:10px;">
@@ -175,45 +192,69 @@
                         <div class="nf-card" style="margin-bottom:10px;">
                             <div style="font-weight:600;">Option 2 — Upload Metadata XML</div>
                             <label class="nf-button" style="display:inline-block; cursor:pointer; margin-top:8px;">
-                                Upload XML
-                                <input type="file" accept=".xml" style="display:none" onchange="importMetadataFile(this)">
-                            </label>
-                        </div>
+                                    Upload XML
+                                    <input type="file" accept=".xml" style="display:none" onchange="importMetadataFile(this)">
+                                </label>
+                            </div>
 
                         <div style="text-align:center; color:#777; margin:6px 0;">— or —</div>
 
                         <div class="nf-card">
                             <div style="font-weight:600;">Option 3 — Enter Manually</div>
-                            <label>IdP Entity ID / Issuer</label>
-                            <input id="newSamlEntityId" type="text">
-                            <label>SAML Login URL</label>
-                            <input id="newSamlSsoUrl" type="text">
-                            <label>X.509 Certificate</label>
-                            <textarea id="newSamlX509Cert" rows="4"></textarea>
+                        <label>IdP Entity ID / Issuer</label>
+                        <input id="newSamlEntityId" type="text">
+                        <label>SAML Login URL</label>
+                        <input id="newSamlSsoUrl" type="text">
+                        <label>X.509 Certificate</label>
+                        <textarea id="newSamlX509Cert" rows="4"></textarea>
                         </div>
 
                         <small style="color:#aaa; display:block; margin-top:6px;">miniOrange: use your tenant metadata URL or download the XML from their dashboard.</small>
                     </div>
                     <div id="newJwtFields" class="nf-card" style="display:none;margin-top:10px;">
-                        <div style="font-weight:700; margin-bottom:6px;">JWT</div>
-                        <small style="color:#aaa; display:block; margin-bottom:8px;">For APIs issuing JWTs. Use JWKS URI or upload a signing certificate (miniOrange).</small>
-                        <label>Issuer</label>
-                        <input id="newJwtIssuer" type="text">
-                        <label>Audience</label>
-                        <input id="newJwtAudience" type="text">
-                        <label>JWKS URI</label>
-                        <input id="newJwtJwksUri" type="text" placeholder="https://example.com/.well-known/jwks.json">
-                        <div style="text-align:center; color:#777; margin:6px 0;">— or —</div>
-                        <label>Certificate (PEM)</label>
-                        <textarea id="newJwtCertificate" rows="5" placeholder="-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"></textarea>
-                        <div class="nf-actions" style="margin-top:8px;">
-                            <label class="nf-button" style="display:inline-block; cursor:pointer;">
-                                Upload Certificate
-                                <input type="file" accept=".pem,.crt,.cer,.txt" style="display:none" onchange="uploadJwtCert(this)">
-                            </label>
+                        <p class="nf-card-title">JWT Configuration</p>
+                        <p class="nf-card-text"><strong>For JWT Login:</strong> SSO URL is <strong>required</strong>. Certificate can be added to verify the JWT token received from miniOrange.</p>
+
+                        <div class="nf-form-group">
+                            <label><strong>JWT SSO URL (Required for Login) - miniOrange</strong></label>
+                            <label>SSO URL *</label>
+                            <input id="newJwtSsoUrl" type="text" placeholder="https://kanna.xecurify.com/moas/idp/jwtsso/379412" required>
+                            <label>Client ID *</label>
+                            <input id="newJwtClientId" type="text" placeholder="nVvtWoEF7BFOYgAVAWpQ6OE9Mkq7HEx4" required>
+                            <label>Client Secret</label>
+                            <input id="newJwtClientSecret" type="text" placeholder="OMJJzRxgiRh9fDMKCSc3bh7w0uY9E90T">
+                            <label>Redirect URI (Callback URL)</label>
+                            <input id="newJwtRedirectUri" type="text" placeholder="http://localhost:8080/sso/jwt/callback">
+                            <small style="color:#aaa; display:block; margin-top:6px;">Required for JWT login flow. User will be redirected to miniOrange for authentication. After login, miniOrange sends JWT token to the callback URL. If left empty, defaults to: <code id="jwtCallbackUrl" style="color:#888;">http://localhost:8080/sso/jwt/callback</code></small>
                         </div>
-                        <label>Header Name</label>
-                        <input id="newJwtHeaderName" type="text" value="Authorization">
+
+                        <div style="margin-top:20px; padding-top:20px; border-top:1px solid #333;">
+                            <div class="nf-form-group">
+                                <label><strong>Optional: Certificate for Token Verification</strong></label>
+                                <label>Certificate (PEM)</label>
+                                <textarea id="newJwtCertificate" rows="5" placeholder="-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"></textarea>
+                                <div class="nf-actions" style="margin-top:8px;">
+                                    <label class="nf-button" style="display:inline-block; cursor:pointer;">
+                                        Upload Certificate
+                                        <input type="file" accept=".pem,.crt,.cer,.txt" style="display:none" onchange="uploadJwtCert(this)">
+                                    </label>
+                                </div>
+                                <small style="color:#aaa; display:block; margin-top:6px;">Optional: Upload certificate to verify JWT token signature received from miniOrange. If not provided, token will be accepted without signature verification.</small>
+                            </div>
+
+                            <div class="nf-form-group" style="margin-top:16px;">
+                                <label><strong>Optional: Additional JWT Settings (for Testing/API)</strong></label>
+                                <label>JWKS URI</label>
+                                <input id="newJwtJwksUri" type="text" placeholder="https://example.com/.well-known/jwks.json">
+                                <label>Issuer</label>
+                                <input id="newJwtIssuer" type="text">
+                                <label>Audience</label>
+                                <input id="newJwtAudience" type="text">
+                                <label>Header Name</label>
+                                <input id="newJwtHeaderName" type="text" value="Authorization">
+                                <small style="color:#aaa; display:block; margin-top:6px;">Optional: Additional settings for JWT token validation. Used for testing and API integration.</small>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="nf-modal-actions">
@@ -252,29 +293,29 @@ async function loadProviders(){
     const tbody = document.querySelector('#providersTable tbody');
     tbody.innerHTML = `<tr><td colspan="4">Loading...</td></tr>`;
     try {
-        const res = await fetch('/api/sso/providers');
+    const res = await fetch('/api/sso/providers');
         if(!res.ok) throw new Error('Failed to load providers');
-        const list = await res.json();
-        const activeRes = await fetch('/api/sso/providers/active');
+    const list = await res.json();
+    const activeRes = await fetch('/api/sso/providers/active');
         const activeIds = await activeRes.json().catch(()=>[]);
-        tbody.innerHTML = '';
+    tbody.innerHTML = '';
         if(!Array.isArray(list) || list.length===0){
             tbody.innerHTML = `<tr><td colspan=\"4\">No providers found</td></tr>`;
             return;
         }
-        list.forEach(p=>{
-            const tr = document.createElement('tr');
+    list.forEach(p=>{
+        const tr = document.createElement('tr');
             const isActive = Array.isArray(activeIds) ? activeIds.includes(p.id) : false;
-            tr.innerHTML = `<td>${p.id}</td><td>${p.name||''}</td><td>${p.type||''}</td>
-            <td>
-                ${isActive ? `<button class='nf-button nf-success' disabled>Activated</button>` : `<button class='nf-button' onclick='activateProvider(${p.id})'>Activate</button>`}
+        tr.innerHTML = `<td>${p.id}</td><td>${p.name||''}</td><td>${p.type||''}</td>
+        <td>
+            ${isActive ? `<button class='nf-button nf-success' disabled>Activated</button>` : `<button class='nf-button' onclick='activateProvider(${p.id})'>Activate</button>`}
                 ${isActive ? `<button class='nf-button nf-secondary' onclick='deactivateProvider(${p.id})'>Deactivate</button>` : ''}
-                <button class='nf-button nf-secondary' onclick='editProvider(${p.id})'>Edit</button>
-                <button class='nf-button nf-danger' onclick='deleteProvider(${p.id})'>Delete</button>
+            <button class='nf-button nf-secondary' onclick='editProvider(${p.id})'>Edit</button>
+            <button class='nf-button nf-danger' onclick='deleteProvider(${p.id})'>Delete</button>
                 <button class='nf-button' onclick='testProvider(${p.id})'>Test</button>
-            </td>`;
-            tbody.appendChild(tr);
-        });
+        </td>`;
+        tbody.appendChild(tr);
+    });
     } catch(e){
         tbody.innerHTML = `<tr><td colspan=\"4\">Error: ${e.message}</td></tr>`;
     }
@@ -315,10 +356,15 @@ function editProvider(id){
         document.getElementById('newSamlMetadataUrl').value = p.samlMetadataUrl||'';
         // JWT
         if (document.getElementById('newJwtIssuer')) {
+            document.getElementById('newJwtSsoUrl').value = p.jwtSsoUrl||'';
+            document.getElementById('newJwtClientId').value = p.jwtClientId||'';
+            document.getElementById('newJwtClientSecret').value = p.jwtClientSecret||'';
+            document.getElementById('newJwtRedirectUri').value = p.jwtRedirectUri||'';
             document.getElementById('newJwtIssuer').value = p.jwtIssuer||'';
             document.getElementById('newJwtAudience').value = p.jwtAudience||'';
             document.getElementById('newJwtJwksUri').value = p.jwtJwksUri||'';
             document.getElementById('newJwtHeaderName').value = p.jwtHeaderName||'Authorization';
+            document.getElementById('newJwtCertificate').value = p.jwtCertificate||'';
         }
         document.getElementById('saveProviderId').value = id;
     });
@@ -327,9 +373,15 @@ async function testProvider(id){
     const res = await fetch(`/api/sso/providers/${id}/test`);
     if(!res.ok) return;
     const data = await res.json();
-    if(data.type==='OIDC' && data.authorizeUrl){ window.open(data.authorizeUrl, '_blank'); }
+    if(data.type==='OIDC'){
+        if(data.startUrl){ window.open(data.startUrl, '_blank'); }
+        else if(data.authorizeUrl){ window.open(data.authorizeUrl, '_blank'); }
+    }
     else if(data.type==='SAML' && (data.startUrl||data.ssoUrl)){ window.open(data.startUrl||data.ssoUrl, '_blank'); }
-    else if(data.type==='JWT'){ window.open(`/test/sso/jwt?providerId=${id}`, '_blank'); }
+    else if(data.type==='JWT'){
+        if(data.startUrl){ window.open(data.startUrl, '_blank'); }
+        else { window.open(`/test/sso/jwt?providerId=${id}`, '_blank'); }
+    }
 }
 async function saveProvider(){
     const id = document.getElementById('saveProviderId').value;
@@ -355,6 +407,10 @@ async function saveProvider(){
         body.samlX509Cert = document.getElementById('newSamlX509Cert').value;
         body.samlMetadataUrl = document.getElementById('newSamlMetadataUrl').value;
     } else if(type==='JWT') {
+        body.jwtSsoUrl = document.getElementById('newJwtSsoUrl').value;
+        body.jwtClientId = document.getElementById('newJwtClientId').value;
+        body.jwtClientSecret = document.getElementById('newJwtClientSecret').value;
+        body.jwtRedirectUri = document.getElementById('newJwtRedirectUri').value;
         body.jwtIssuer = document.getElementById('newJwtIssuer').value;
         body.jwtAudience = document.getElementById('newJwtAudience').value;
         body.jwtJwksUri = document.getElementById('newJwtJwksUri').value;
@@ -365,7 +421,52 @@ async function saveProvider(){
     if(res.status===409){ alert('Provider name already exists'); return; }
     if(res.ok){ document.getElementById('saveProviderId').value=''; nf.closeModal('addSsoModal'); loadProviders(); }
 }
-window.addEventListener('DOMContentLoaded', loadProviders);
+window.addEventListener('DOMContentLoaded', function() {
+    loadProviders();
+    // Update callback URLs to current origin
+    const baseUrl = window.location.origin;
+    // JWT callback URL
+    const jwtCallbackEl = document.getElementById('jwtCallbackUrl');
+    if (jwtCallbackEl) {
+        jwtCallbackEl.textContent = baseUrl + '/sso/jwt/callback';
+        const jwtRedirectInput = document.getElementById('newJwtRedirectUri');
+        if (jwtRedirectInput && !jwtRedirectInput.value) {
+            jwtRedirectInput.placeholder = baseUrl + '/sso/jwt/callback';
+        }
+    }
+    // OIDC redirect URI
+    const oidcRedirectInput = document.getElementById('newOidcRedirectUri');
+    if (oidcRedirectInput && !oidcRedirectInput.value) {
+        oidcRedirectInput.placeholder = baseUrl + '/sso/oauth2/callback';
+    }
+});
+async function importOidcDiscovery(){
+    const url = document.getElementById('newOidcDiscoveryUrl').value.trim();
+    if(!url) { alert('Please enter a discovery URL'); return; }
+    try {
+        const res = await fetch(`/api/sso/providers/oidc/discovery?url=${encodeURIComponent(url)}`);
+        if(res.ok){ 
+            const data = await res.json();
+            if(data.oidcIssuerUri) document.getElementById('newOidcIssuerUri').value = data.oidcIssuerUri||'';
+            if(data.oidcAuthorizationEndpoint) document.getElementById('newOidcAuthz').value = data.oidcAuthorizationEndpoint||'';
+            if(data.oidcTokenEndpoint) document.getElementById('newOidcToken').value = data.oidcTokenEndpoint||'';
+            if(data.oidcUserInfoEndpoint) document.getElementById('newOidcUserInfo').value = data.oidcUserInfoEndpoint||'';
+            if(data.oidcLogoutEndpoint) document.getElementById('newOidcLogout').value = data.oidcLogoutEndpoint||'';
+            if(data.oidcScopes) document.getElementById('newOidcScopes').value = data.oidcScopes||'openid profile email';
+            // Auto-set redirect URI if not already set
+            const redirectInput = document.getElementById('newOidcRedirectUri');
+            if(!redirectInput.value) {
+                const baseUrl = window.location.origin;
+                redirectInput.value = baseUrl + '/sso/oauth2/callback';
+            }
+            alert('OIDC configuration imported successfully! Please enter your Client ID and Client Secret manually.');
+        } else {
+            alert('Failed to import OIDC configuration. Please check the URL.');
+        }
+    } catch(e) {
+        alert('Error importing OIDC configuration: ' + e.message);
+    }
+}
 async function importMetadataUrl(){
     const url = document.getElementById('newSamlMetadataUrl').value.trim();
     if(!url) return;

@@ -1,6 +1,8 @@
 package com.example.finalsso.controller;
 
 import com.example.finalsso.entity.SSOConfig;
+import com.example.finalsso.entity.SSOProvider;
+import com.example.finalsso.repository.SSOProviderRepository;
 import com.example.finalsso.service.SSOConfigService;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -31,48 +33,128 @@ import org.springframework.security.core.context.SecurityContextHolder;
 public class SsoOAuthController {
 
 	private final SSOConfigService cfgService;
+	private final SSOProviderRepository providerRepository;
 	private final RestTemplate restTemplate = new RestTemplate();
 
-	public SsoOAuthController(SSOConfigService cfgService) { this.cfgService = cfgService; }
+	public SsoOAuthController(SSOConfigService cfgService, SSOProviderRepository providerRepository) {
+		this.cfgService = cfgService;
+		this.providerRepository = providerRepository;
+	}
 
 	@GetMapping("/sso/oauth2/authorize")
-	public String authorize(HttpServletRequest request) {
+	public String authorize(@RequestParam(required = false) Long providerId, HttpServletRequest request) {
 		try {
-			SSOConfig cfg = cfgService.get();
-			if (!"OIDC".equalsIgnoreCase(cfg.getActiveProtocol())) {
-				return "redirect:/login/sso";
+			SSOProvider provider = null;
+			// Check for test provider ID from session
+			Long testProviderId = null;
+			var session = request.getSession(false);
+			if (session != null) {
+				Object attr = session.getAttribute("oidc_test_provider_id");
+				if (attr instanceof Long) {
+					testProviderId = (Long) attr;
+				}
 			}
-			String clientId = cfg.getOidcClientId();
-			if (clientId == null || clientId.isEmpty()) {
-				return "redirect:/login?error=config";
+			
+			if (providerId != null) {
+				provider = providerRepository.findById(providerId).orElse(null);
+			} else if (testProviderId != null) {
+				provider = providerRepository.findById(testProviderId).orElse(null);
+			} else {
+				// Find first active OIDC provider
+				provider = providerRepository.findAll().stream()
+						.filter(p -> p.isActive() && "OIDC".equalsIgnoreCase(p.getType()))
+						.findFirst().orElse(null);
 			}
-			String scopes = cfg.getOidcScopes() != null ? cfg.getOidcScopes() : "openid,profile,email";
-			String authz = cfg.getOidcAuthorizationEndpoint();
-			if (authz == null || authz.isEmpty()) {
-				authz = cfg.getOidcIssuerUri();
+			
+			// Fallback to SSOConfig if no provider found
+			if (provider == null) {
+				SSOConfig cfg = cfgService.get();
+				if (!"OIDC".equalsIgnoreCase(cfg.getActiveProtocol())) {
+					return "redirect:/login/sso";
+				}
+				return authorizeWithConfig(cfg, null, request);
 			}
-			if (authz == null || authz.isEmpty()) {
-				return "redirect:/login?error=config";
-			}
-			String baseUrl = request.getRequestURL().toString().replace(request.getRequestURI(), "");
-			String redirectUri = cfg.getOidcRedirectUri();
-			if (redirectUri == null || redirectUri.isEmpty()) {
-				redirectUri = baseUrl + "/sso/oauth2/callback";
-			}
-			String state = UUID.randomUUID().toString();
-			request.getSession(true).setAttribute("oauth_state", state);
-			String url = authz
-					+ (authz.contains("?") ? "&" : "?")
-					+ "response_type=code"
-					+ "&client_id=" + url(clientId)
-					+ "&redirect_uri=" + url(redirectUri)
-					+ "&scope=" + url(scopes.replace(" ", ","))
-					+ "&state=" + url(state);
-			return "redirect:" + url;
+			
+			// Use provider-specific configuration
+			return authorizeWithProvider(provider, providerId != null ? providerId : (testProviderId != null ? testProviderId : provider.getId()), request);
 		} catch (Exception e) {
 			e.printStackTrace();
 			return "redirect:/login?error";
 		}
+	}
+	
+	private String authorizeWithProvider(SSOProvider provider, Long finalProviderId, HttpServletRequest request) {
+		String clientId = provider.getOidcClientId();
+		if (clientId == null || clientId.isEmpty()) {
+			return "redirect:/login?error=oidc_client_id_missing";
+		}
+		
+		String scopes = provider.getOidcScopes() != null && !provider.getOidcScopes().trim().isEmpty() 
+				? provider.getOidcScopes().trim() : "openid profile email";
+		String authz = provider.getOidcAuthorizationEndpoint();
+		if (authz == null || authz.isEmpty()) {
+			authz = provider.getOidcIssuerUri();
+		}
+		if (authz == null || authz.isEmpty()) {
+			return "redirect:/login?error=oidc_authorization_endpoint_missing";
+		}
+		
+		String baseUrl = request.getRequestURL().toString().replace(request.getRequestURI(), "");
+		String redirectUri = provider.getOidcRedirectUri();
+		if (redirectUri == null || redirectUri.trim().isEmpty()) {
+			redirectUri = baseUrl + "/sso/oauth2/callback";
+		} else {
+			redirectUri = redirectUri.trim(); // Remove leading/trailing spaces
+		}
+		
+		String state = UUID.randomUUID().toString();
+		HttpSession session = request.getSession(true);
+		session.setAttribute("oauth_state", state);
+		if (finalProviderId != null) {
+			session.setAttribute("oidc_provider_id", finalProviderId);
+		}
+		
+		String url = authz
+				+ (authz.contains("?") ? "&" : "?")
+				+ "response_type=code"
+				+ "&client_id=" + url(clientId)
+				+ "&redirect_uri=" + url(redirectUri)
+				+ "&scope=" + url(scopes.replace(",", " ").replaceAll("\\s+", " "))
+				+ "&state=" + url(state);
+		return "redirect:" + url;
+	}
+	
+	private String authorizeWithConfig(SSOConfig cfg, Long providerId, HttpServletRequest request) {
+		String clientId = cfg.getOidcClientId();
+		if (clientId == null || clientId.isEmpty()) {
+			return "redirect:/login?error=config";
+		}
+		String scopes = cfg.getOidcScopes() != null && !cfg.getOidcScopes().trim().isEmpty() 
+				? cfg.getOidcScopes().trim() : "openid profile email";
+		String authz = cfg.getOidcAuthorizationEndpoint();
+		if (authz == null || authz.isEmpty()) {
+			authz = cfg.getOidcIssuerUri();
+		}
+		if (authz == null || authz.isEmpty()) {
+			return "redirect:/login?error=config";
+		}
+		String baseUrl = request.getRequestURL().toString().replace(request.getRequestURI(), "");
+		String redirectUri = cfg.getOidcRedirectUri();
+		if (redirectUri == null || redirectUri.trim().isEmpty()) {
+			redirectUri = baseUrl + "/sso/oauth2/callback";
+		} else {
+			redirectUri = redirectUri.trim(); // Remove leading/trailing spaces
+		}
+		String state = UUID.randomUUID().toString();
+		request.getSession(true).setAttribute("oauth_state", state);
+		String url = authz
+				+ (authz.contains("?") ? "&" : "?")
+				+ "response_type=code"
+				+ "&client_id=" + url(clientId)
+				+ "&redirect_uri=" + url(redirectUri)
+				+ "&scope=" + url(scopes.replace(",", " ").replaceAll("\\s+", " "))
+				+ "&state=" + url(state);
+		return "redirect:" + url;
 	}
 
 	@GetMapping("/sso/oauth2/callback")
@@ -90,23 +172,99 @@ public class SsoOAuthController {
 			if (expected == null || state == null || !expected.equals(state) || code == null) {
 				return "redirect:/login?error=invalid";
 			}
-			SSOConfig cfg = cfgService.get();
-			String redirectUri = cfg.getOidcRedirectUri();
-			if (redirectUri == null || redirectUri.isEmpty()) {
-				String baseUrl = request.getRequestURL().toString().replace(request.getRequestURI(), "");
-				redirectUri = baseUrl + "/sso/oauth2/callback";
-			}
-
-			// Exchange code for token
-			String tokenEndpoint = cfg.getOidcTokenEndpoint();
-			if (tokenEndpoint == null || tokenEndpoint.isEmpty()) {
-				tokenEndpoint = cfg.getOidcIssuerUri();
-				if (tokenEndpoint != null && !tokenEndpoint.isEmpty() && !tokenEndpoint.endsWith("/token")) {
-					tokenEndpoint = tokenEndpoint + (tokenEndpoint.endsWith("/") ? "" : "/") + "token";
+			
+			// Get provider from session if available
+			Long providerId = null;
+			if (session != null) {
+				Object attr = session.getAttribute("oidc_provider_id");
+				if (attr instanceof Long) {
+					providerId = (Long) attr;
 				}
 			}
-			if (tokenEndpoint == null || tokenEndpoint.isEmpty()) {
-				return "redirect:/login?error=config";
+			
+			SSOProvider provider = null;
+			if (providerId != null) {
+				provider = providerRepository.findById(providerId).orElse(null);
+				if (session != null) {
+					session.removeAttribute("oidc_provider_id");
+				}
+			}
+			
+			String redirectUri;
+			String tokenEndpoint;
+			String clientId;
+			String clientSecret;
+			String userInfoUrl;
+			
+			if (provider != null) {
+				// Use provider-specific configuration
+			String baseUrl = request.getRequestURL().toString().replace(request.getRequestURI(), "");
+			redirectUri = provider.getOidcRedirectUri();
+			if (redirectUri == null || redirectUri.trim().isEmpty()) {
+				redirectUri = baseUrl + "/sso/oauth2/callback";
+			} else {
+				redirectUri = redirectUri.trim(); // Remove leading/trailing spaces
+			}
+				
+				tokenEndpoint = provider.getOidcTokenEndpoint();
+				if (tokenEndpoint == null || tokenEndpoint.isEmpty()) {
+					tokenEndpoint = provider.getOidcIssuerUri();
+					if (tokenEndpoint != null && !tokenEndpoint.isEmpty() && !tokenEndpoint.endsWith("/token")) {
+						tokenEndpoint = tokenEndpoint + (tokenEndpoint.endsWith("/") ? "" : "/") + "token";
+					}
+				}
+				if (tokenEndpoint == null || tokenEndpoint.isEmpty()) {
+					return "redirect:/login?error=oidc_token_endpoint_missing";
+				}
+				
+				clientId = provider.getOidcClientId();
+				clientSecret = provider.getOidcClientSecret();
+				
+				userInfoUrl = provider.getOidcUserInfoEndpoint();
+				if (userInfoUrl == null || userInfoUrl.isEmpty()) {
+					String issuer = provider.getOidcIssuerUri();
+					if (issuer != null && !issuer.isEmpty()) {
+						userInfoUrl = issuer + (issuer.endsWith("/") ? "" : "/") + "userinfo";
+					}
+				}
+				if (userInfoUrl == null || userInfoUrl.isEmpty()) {
+					return "redirect:/login?error=oidc_userinfo_endpoint_missing";
+				}
+			} else {
+				// Fallback to SSOConfig
+				SSOConfig cfg = cfgService.get();
+				String baseUrl = request.getRequestURL().toString().replace(request.getRequestURI(), "");
+				redirectUri = cfg.getOidcRedirectUri();
+				if (redirectUri == null || redirectUri.trim().isEmpty()) {
+					redirectUri = baseUrl + "/sso/oauth2/callback";
+				} else {
+					redirectUri = redirectUri.trim(); // Remove leading/trailing spaces
+				}
+				
+				tokenEndpoint = cfg.getOidcTokenEndpoint();
+				if (tokenEndpoint == null || tokenEndpoint.isEmpty()) {
+					tokenEndpoint = cfg.getOidcIssuerUri();
+					if (tokenEndpoint != null && !tokenEndpoint.isEmpty() && !tokenEndpoint.endsWith("/token")) {
+						tokenEndpoint = tokenEndpoint + (tokenEndpoint.endsWith("/") ? "" : "/") + "token";
+					}
+				}
+				if (tokenEndpoint == null || tokenEndpoint.isEmpty()) {
+					return "redirect:/login?error=config";
+				}
+				
+				clientId = cfg.getOidcClientId();
+				clientSecret = cfg.getOidcClientSecret();
+				
+				userInfoUrl = cfg.getOidcUserInfoEndpoint();
+				if (userInfoUrl == null || userInfoUrl.isEmpty()) {
+					String issuer = cfg.getOidcIssuerUri();
+					if (issuer != null && !issuer.isEmpty()) {
+						userInfoUrl = issuer + (issuer.endsWith("/") ? "" : "/") + "userinfo";
+					}
+				}
+				if (userInfoUrl == null || userInfoUrl.isEmpty()) {
+					return "redirect:/login?error=config";
+				}
 			}
 
 			HttpHeaders headers = new HttpHeaders();
@@ -115,8 +273,8 @@ public class SsoOAuthController {
 			form.add("grant_type", "authorization_code");
 			form.add("code", code);
 			form.add("redirect_uri", redirectUri);
-			form.add("client_id", cfg.getOidcClientId());
-			form.add("client_secret", cfg.getOidcClientSecret());
+			form.add("client_id", clientId);
+			form.add("client_secret", clientSecret);
 			HttpEntity<MultiValueMap<String, String>> req = new HttpEntity<>(form, headers);
 
 			ResponseEntity<Map<String, Object>> tokenRes;
@@ -131,18 +289,6 @@ public class SsoOAuthController {
 			Object accessToken = tokenRes.getBody() != null ? tokenRes.getBody().get("access_token") : null;
 			if (accessToken == null) {
 				return "redirect:/login?error=token";
-			}
-
-			// Fetch userinfo
-			String userInfoUrl = cfg.getOidcUserInfoEndpoint();
-			if (userInfoUrl == null || userInfoUrl.isEmpty()) {
-				String issuer = cfg.getOidcIssuerUri();
-				if (issuer != null && !issuer.isEmpty()) {
-					userInfoUrl = issuer + (issuer.endsWith("/") ? "" : "/") + "userinfo";
-				}
-			}
-			if (userInfoUrl == null || userInfoUrl.isEmpty()) {
-				return "redirect:/login?error=config";
 			}
 
 			HttpHeaders uh = new HttpHeaders();

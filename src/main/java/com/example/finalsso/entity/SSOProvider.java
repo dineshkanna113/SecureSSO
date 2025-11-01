@@ -43,6 +43,11 @@ public class SSOProvider {
     private String jwtHeaderName;
     @Column(length = 8192)
     private String jwtCertificate; // PEM-encoded public key/cert for signature validation
+    // JWT SSO flow fields (for miniOrange and similar)
+    private String jwtSsoUrl; // e.g., https://kanna.xecurify.com/moas/idp/jwtsso/379412
+    private String jwtClientId;
+    private String jwtClientSecret;
+    private String jwtRedirectUri; // Callback URL where IdP sends JWT token
 
     private Boolean active = false;
 
@@ -93,6 +98,14 @@ public class SSOProvider {
     public void setJwtHeaderName(String jwtHeaderName) { this.jwtHeaderName = jwtHeaderName; }
     public String getJwtCertificate() { return jwtCertificate; }
     public void setJwtCertificate(String jwtCertificate) { this.jwtCertificate = jwtCertificate; }
+    public String getJwtSsoUrl() { return jwtSsoUrl; }
+    public void setJwtSsoUrl(String jwtSsoUrl) { this.jwtSsoUrl = jwtSsoUrl; }
+    public String getJwtClientId() { return jwtClientId; }
+    public void setJwtClientId(String jwtClientId) { this.jwtClientId = jwtClientId; }
+    public String getJwtClientSecret() { return jwtClientSecret; }
+    public void setJwtClientSecret(String jwtClientSecret) { this.jwtClientSecret = jwtClientSecret; }
+    public String getJwtRedirectUri() { return jwtRedirectUri; }
+    public void setJwtRedirectUri(String jwtRedirectUri) { this.jwtRedirectUri = jwtRedirectUri; }
 
     public boolean isActive() { return Boolean.TRUE.equals(active); }
     public void setActive(boolean active) { this.active = active; }

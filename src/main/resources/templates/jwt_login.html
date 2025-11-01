@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>JWT Login</title>
+    <link rel="stylesheet" th:href="@{/css/netflix.css}">
+</head>
+<body class="nf-body">
+<div class="nf-header">JWT Login - <span th:text="${providerName}"></span></div>
+<div class="nf-container">
+    <div class="nf-card nf-form">
+        <div th:if="${error}" style="background:#b81d24;color:#fff;padding:10px 14px;border-radius:6px;margin-bottom:12px;" th:text="${error}"></div>
+        <p style="color:#aaa; margin-bottom:12px;">Paste your JWT token to authenticate.</p>
+        <p th:if="${hasCert}" style="color:#2ecc71; margin-bottom:12px;">✓ Certificate configured. Token signature will be verified.</p>
+        <p th:if="${hasJwks && !hasCert}" style="color:#2ecc71; margin-bottom:12px;">✓ JWKS URI configured.</p>
+        <form th:action="@{/sso/jwt/verify}" method="post">
+            <input type="hidden" name="providerId" th:value="${providerId}">
+            <label>JWT Token</label>
+            <textarea name="token" rows="8" placeholder="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiZW1haWwiOiJqb2huQGV4YW1wbGUuY29tIn0..." required></textarea>
+            <div class="nf-actions" style="margin-top:16px;">
+                <button class="nf-button" type="submit">Authenticate</button>
+                <a class="nf-button nf-secondary" th:href="@{/login}">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+</body>
+</html>
+

@@ -17,9 +17,30 @@
                 wrap.appendChild(p);
                 return;
             }
+            // Filter: Only show providers with required configuration
+            const validProviders = list.filter(pr => {
+                if ((pr.type||'').toUpperCase() === 'JWT') {
+                    return pr.jwtSsoUrl && pr.jwtSsoUrl.trim() !== '';
+                }
+                if ((pr.type||'').toUpperCase() === 'OIDC') {
+                    // OIDC providers need Client ID and Authorization Endpoint
+                    return pr.oidcClientId && pr.oidcClientId.trim() !== '' && 
+                           (pr.oidcAuthorizationEndpoint || pr.oidcIssuerUri);
+                }
+                return true; // Show SAML providers as-is
+            });
+            
+            if(validProviders.length === 0){
+                const p = document.createElement('div');
+                p.className='nf-card';
+                p.innerText='No valid providers configured. JWT providers require SSO URL. OIDC providers require Client ID and Authorization Endpoint.';
+                wrap.appendChild(p);
+                return;
+            }
+            
             const grid = document.createElement('div');
             grid.className = 'prov-list';
-            list.forEach(pr=>{
+            validProviders.forEach(pr=>{
                 const btn = document.createElement('button');
                 btn.className = 'nf-button';
                 btn.type='button';
@@ -33,9 +54,11 @@
             const res = await fetch(`/api/sso/providers/${pr.id}/activate`, {method:'POST'});
             if(!res.ok){ alert('Unable to activate provider'); return; }
             if((pr.type||'').toUpperCase()==='OIDC'){
-                window.location.href = '/sso/oauth2/authorize';
+                window.location.href = `/sso/oauth2/authorize?providerId=${pr.id}`;
             } else if((pr.type||'').toUpperCase()==='SAML'){
                 window.location.href = '/sso/saml2/authenticate';
+            } else if((pr.type||'').toUpperCase()==='JWT'){
+                window.location.href = `/sso/jwt/authenticate?providerId=${pr.id}`;
             } else {
                 window.location.href = '/saml2/authenticate/okta';
             }

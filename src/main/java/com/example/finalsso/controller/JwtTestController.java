@@ -25,7 +25,7 @@ public class JwtTestController {
         this.repo = repo;
     }
 
-    @GetMapping("/test/sso/jwt")
+    @GetMapping("/test/sso/jwt/manual")
     public String testJwt(@RequestParam Long providerId, Model model) {
         SSOProvider p = repo.findById(providerId).orElse(null);
         if (p == null || !"JWT".equalsIgnoreCase(p.getType())) {
