@@ -15,6 +15,11 @@ public class SSOConfig {
 
 	@Column(nullable = false)
 	private String activeProtocol = "OIDC"; // OIDC, SAML, DEFAULT
+	
+	// Tenant relationship - null for global config (super admin only)
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "tenant_id", nullable = true)
+	private Tenant tenant;
 
 	// OIDC fields
 	private String oidcClientId;
@@ -34,6 +39,22 @@ public class SSOConfig {
 	private String samlX509Cert;
 	@Column(length = 16384)
 	private String samlMetadataXml;
+	
+	// JWT fields
+	private String jwtIssuer;
+	private String jwtAudience;
+	private String jwtJwksUri;
+	private String jwtHeaderName;
+	@Column(length = 8192)
+	private String jwtCertificate; // PEM-encoded public key/cert for signature validation
+	// JWT SSO flow fields (for miniOrange and similar)
+	private String jwtSsoUrl; // e.g., https://kanna.xecurify.com/moas/idp/jwtsso/379412
+	private String jwtClientId;
+	private String jwtClientSecret;
+	private String jwtRedirectUri; // Callback URL where IdP sends JWT token
+	
+	// Provider name (e.g., MiniOrange, Okta, Azure AD)
+	private String providerName;
 
 	public Long getId() { return id; }
 	public void setId(Long id) { this.id = id; }
@@ -67,6 +88,31 @@ public class SSOConfig {
 	public void setSamlX509Cert(String samlX509Cert) { this.samlX509Cert = samlX509Cert; }
 	public String getSamlMetadataXml() { return samlMetadataXml; }
 	public void setSamlMetadataXml(String samlMetadataXml) { this.samlMetadataXml = samlMetadataXml; }
+	
+	public String getJwtIssuer() { return jwtIssuer; }
+	public void setJwtIssuer(String jwtIssuer) { this.jwtIssuer = jwtIssuer; }
+	public String getJwtAudience() { return jwtAudience; }
+	public void setJwtAudience(String jwtAudience) { this.jwtAudience = jwtAudience; }
+	public String getJwtJwksUri() { return jwtJwksUri; }
+	public void setJwtJwksUri(String jwtJwksUri) { this.jwtJwksUri = jwtJwksUri; }
+	public String getJwtHeaderName() { return jwtHeaderName; }
+	public void setJwtHeaderName(String jwtHeaderName) { this.jwtHeaderName = jwtHeaderName; }
+	public String getJwtCertificate() { return jwtCertificate; }
+	public void setJwtCertificate(String jwtCertificate) { this.jwtCertificate = jwtCertificate; }
+	public String getJwtSsoUrl() { return jwtSsoUrl; }
+	public void setJwtSsoUrl(String jwtSsoUrl) { this.jwtSsoUrl = jwtSsoUrl; }
+	public String getJwtClientId() { return jwtClientId; }
+	public void setJwtClientId(String jwtClientId) { this.jwtClientId = jwtClientId; }
+	public String getJwtClientSecret() { return jwtClientSecret; }
+	public void setJwtClientSecret(String jwtClientSecret) { this.jwtClientSecret = jwtClientSecret; }
+	public String getJwtRedirectUri() { return jwtRedirectUri; }
+	public void setJwtRedirectUri(String jwtRedirectUri) { this.jwtRedirectUri = jwtRedirectUri; }
+	
+	public String getProviderName() { return providerName; }
+	public void setProviderName(String providerName) { this.providerName = providerName; }
+	
+	public Tenant getTenant() { return tenant; }
+	public void setTenant(Tenant tenant) { this.tenant = tenant; }
 }
 
 

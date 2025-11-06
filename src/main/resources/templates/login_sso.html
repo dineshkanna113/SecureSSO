@@ -8,6 +8,8 @@
         async function loadProviders(){
             const res = await fetch('/api/sso/providers');
             const list = await res.json();
+            const activeRes = await fetch('/api/sso/providers/active');
+            const activeIds = await activeRes.json().catch(()=>[]);
             const wrap = document.getElementById('providers');
             wrap.innerHTML = '';
             if(!Array.isArray(list) || list.length===0){
@@ -17,8 +19,13 @@
                 wrap.appendChild(p);
                 return;
             }
-            // Filter: Only show providers with required configuration
+            // Filter: Only show ACTIVE providers with required configuration
             const validProviders = list.filter(pr => {
+                // First check if provider is active
+                const isActive = Array.isArray(activeIds) ? activeIds.includes(pr.id) : false;
+                if (!isActive) return false;
+                
+                // Then check required configuration
                 if ((pr.type||'').toUpperCase() === 'JWT') {
                     return pr.jwtSsoUrl && pr.jwtSsoUrl.trim() !== '';
                 }
@@ -27,13 +34,13 @@
                     return pr.oidcClientId && pr.oidcClientId.trim() !== '' && 
                            (pr.oidcAuthorizationEndpoint || pr.oidcIssuerUri);
                 }
-                return true; // Show SAML providers as-is
+                return true; // Show SAML providers as-is if active
             });
             
             if(validProviders.length === 0){
                 const p = document.createElement('div');
                 p.className='nf-card';
-                p.innerText='No valid providers configured. JWT providers require SSO URL. OIDC providers require Client ID and Authorization Endpoint.';
+                p.innerText='No active providers configured. Please activate a provider in the Admin Dashboard.';
                 wrap.appendChild(p);
                 return;
             }
@@ -45,18 +52,17 @@
                 btn.className = 'nf-button';
                 btn.type='button';
                 btn.innerText = (pr.type||'') + ' - ' + (pr.name||'Provider');
-                btn.onclick = ()=> activateAndStart(pr);
+                btn.onclick = ()=> startLogin(pr);
                 grid.appendChild(btn);
             });
             wrap.appendChild(grid);
         }
-        async function activateAndStart(pr){
-            const res = await fetch(`/api/sso/providers/${pr.id}/activate`, {method:'POST'});
-            if(!res.ok){ alert('Unable to activate provider'); return; }
+        function startLogin(pr){
+            // No need to activate - already activated. Just start login flow
             if((pr.type||'').toUpperCase()==='OIDC'){
                 window.location.href = `/sso/oauth2/authorize?providerId=${pr.id}`;
             } else if((pr.type||'').toUpperCase()==='SAML'){
-                window.location.href = '/sso/saml2/authenticate';
+                window.location.href = `/sso/saml2/authenticate?providerId=${pr.id}`;
             } else if((pr.type||'').toUpperCase()==='JWT'){
                 window.location.href = `/sso/jwt/authenticate?providerId=${pr.id}`;
             } else {

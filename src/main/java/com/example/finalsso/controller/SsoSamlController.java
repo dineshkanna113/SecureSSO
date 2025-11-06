@@ -1,8 +1,10 @@
 package com.example.finalsso.controller;
 
 import com.example.finalsso.entity.SSOConfig;
+import com.example.finalsso.entity.User;
 import com.example.finalsso.service.SSOConfigService;
 import com.example.finalsso.repository.SSOProviderRepository;
+import com.example.finalsso.repository.UserRepository;
 import com.example.finalsso.entity.SSOProvider;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,26 +35,31 @@ public class SsoSamlController {
 
     private final SSOConfigService cfgService;
     private final SSOProviderRepository providerRepository;
+    private final UserRepository userRepository;
 
-    public SsoSamlController(SSOConfigService cfgService, SSOProviderRepository providerRepository) {
+    public SsoSamlController(SSOConfigService cfgService, SSOProviderRepository providerRepository, UserRepository userRepository) {
         this.cfgService = cfgService;
         this.providerRepository = providerRepository;
+        this.userRepository = userRepository;
     }
 
 	@GetMapping("/sso/saml2/authenticate")
-	public String authenticate(HttpServletRequest request) throws Exception {
+	public String authenticate(@RequestParam(required = false) Long providerId, HttpServletRequest request) throws Exception {
         SSOConfig cfg = cfgService.get();
 
 		String baseUrl = request.getRequestURL().toString().replace(request.getRequestURI(), "");
 		String acsUrl = baseUrl + "/sso/saml2/acs";
 		String spEntityId = baseUrl;
-        // Prefer selected test provider, otherwise an active SAML provider if available
+        // Prefer selected test provider, then providerId param, otherwise an active SAML provider if available
         String idpEntityId;
         String idpSsoUrl;
         Long testProviderId = (Long) request.getSession(true).getAttribute("saml_test_provider_id");
         SSOProvider activeSaml = null;
         if (testProviderId != null) {
             activeSaml = providerRepository.findById(testProviderId).orElse(null);
+        }
+        if (activeSaml == null && providerId != null) {
+            activeSaml = providerRepository.findById(providerId).orElse(null);
         }
         if (activeSaml == null) {
             activeSaml = providerRepository.findAll().stream()
@@ -179,9 +186,14 @@ public class SsoSamlController {
                 return "test_sso_result";
             }
 
-            // Authenticate user
+            // Authenticate user - get user's actual role from database
+			String userRole = "ROLE_END_USER"; // Default role
+			User dbUser = userRepository.findByUsername(username).orElse(null);
+			if (dbUser != null) {
+				userRole = dbUser.getRole(); // Returns "ROLE_SUPER_ADMIN", "ROLE_CUSTOMER_ADMIN", or "ROLE_END_USER"
+			}
 			var auth = new UsernamePasswordAuthenticationToken(username, "N/A",
-					Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
+					Collections.singletonList(new SimpleGrantedAuthority(userRole)));
 			SecurityContextHolder.getContext().setAuthentication(auth);
 
 			return "redirect:/user/dashboard";

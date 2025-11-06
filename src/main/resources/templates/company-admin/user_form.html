@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Add End User - kanna.io</title>
+    <link rel="stylesheet" th:href="@{/css/netflix.css}">
+</head>
+<body class="nf-body">
+<div class="nf-header">
+    <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="color: #e50914; font-size: 32px;">k</span>
+        <span style="font-size: 24px; font-weight: 600;">kanna.io - Add End User</span>
+    </div>
+    <div>
+        <a class="nf-button nf-secondary" th:href="@{'/' + ${company} + '/customer-admin/dashboard'}">Back to Dashboard</a>
+    </div>
+</div>
+
+<div class="nf-container">
+    <div style="margin-bottom: 24px;">
+        <h1 th:text="${user.id != null ? 'Edit End User' : 'Add New End User'}">Add New End User</h1>
+        <p style="color: #aaa;">
+            <span th:if="${user.id != null}">Update end user information for <strong th:text="${company}"></strong>.</span>
+            <span th:unless="${user.id != null}">Create a new end user for <strong th:text="${company}"></strong>.</span>
+        </p>
+    </div>
+
+    <div th:if="${error != null or param.error != null}" style="background:#b81d24;color:#fff;padding:12px 16px;border-radius:6px;margin-bottom:20px;">
+        <span th:if="${error != null}" th:text="${error}"></span>
+        <span th:if="${param.error != null}">[[${param.error[0]}]]</span>
+    </div>
+
+    <div class="nf-card">
+        <th:block th:if="${user.id != null}">
+            <form th:action="@{'/' + ${company} + '/customer-admin/users/' + ${user.id}}" method="post">
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; color: #fff;">Username *</label>
+                    <input type="text" name="username" th:value="${user.username}" 
+                           readonly
+                           style="width: 100%; padding: 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; color: #fff;"
+                           placeholder="Enter username (lowercase, 4+ chars)">
+                    <small style="color: #aaa; display: block; margin-top: 4px;">Username cannot be changed</small>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; color: #fff;">Email</label>
+                    <input type="email" name="email" th:value="${user.email}"
+                           style="width: 100%; padding: 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; color: #fff;"
+                           placeholder="Enter email (optional)">
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; color: #fff;">First Name</label>
+                    <input type="text" name="firstName" th:value="${user.firstName}"
+                           style="width: 100%; padding: 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; color: #fff;"
+                           placeholder="Enter first name">
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; color: #fff;">Last Name</label>
+                    <input type="text" name="lastName" th:value="${user.lastName}"
+                           style="width: 100%; padding: 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; color: #fff;"
+                           placeholder="Enter last name">
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; color: #fff;">Password</label>
+                    <input type="password" name="password"
+                           style="width: 100%; padding: 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; color: #fff;"
+                           placeholder="Leave blank to keep current password" minlength="6" maxlength="10">
+                    <small style="color: #aaa; display: block; margin-top: 4px;">Leave blank to keep current password</small>
+                </div>
+                
+                <div style="display: flex; gap: 12px;">
+                    <button type="submit" class="nf-button">Update User</button>
+                    <a class="nf-button nf-secondary" th:href="@{'/' + ${company} + '/customer-admin/dashboard'}">Cancel</a>
+                </div>
+            </form>
+        </th:block>
+        
+        <th:block th:unless="${user.id != null}">
+            <form th:action="@{'/' + ${company} + '/customer-admin/users'}" method="post">
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; color: #fff;">Username *</label>
+                    <input type="text" name="username" th:value="${user.username}" 
+                           required 
+                           style="width: 100%; padding: 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; color: #fff;"
+                           placeholder="Enter username (lowercase, 4+ chars)">
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; color: #fff;">Email</label>
+                    <input type="email" name="email" th:value="${user.email}"
+                           style="width: 100%; padding: 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; color: #fff;"
+                           placeholder="Enter email (optional)">
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; color: #fff;">First Name</label>
+                    <input type="text" name="firstName" th:value="${user.firstName}"
+                           style="width: 100%; padding: 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; color: #fff;"
+                           placeholder="Enter first name">
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; color: #fff;">Last Name</label>
+                    <input type="text" name="lastName" th:value="${user.lastName}"
+                           style="width: 100%; padding: 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; color: #fff;"
+                           placeholder="Enter last name">
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; color: #fff;">Password *</label>
+                    <input type="password" name="password" 
+                           required
+                           style="width: 100%; padding: 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; color: #fff;"
+                           placeholder="Enter password (6-10 characters)" minlength="6" maxlength="10">
+                    <small style="color: #aaa; display: block; margin-top: 4px;">Must be between 6 and 10 characters.</small>
+                </div>
+                
+                <div style="display: flex; gap: 12px;">
+                    <button type="submit" class="nf-button">Create User</button>
+                    <a class="nf-button nf-secondary" th:href="@{'/' + ${company} + '/customer-admin/dashboard'}">Cancel</a>
+                </div>
+            </form>
+        </th:block>
+    </div>
+</div>
+</body>
+</html>

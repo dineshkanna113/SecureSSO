@@ -10,11 +10,16 @@ public class SSOProvider {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
-    private String name; // Provider label
+    @Column(nullable = false)
+    private String name; // Provider label (not unique anymore - tenant-specific)
 
     @Column(nullable = false)
     private String type; // OIDC, SAML, or JWT
+    
+    // Tenant relationship - null for global providers (super admin only)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tenant_id", nullable = true)
+    private Tenant tenant;
 
     // OIDC fields
     private String oidcClientId;
@@ -109,6 +114,9 @@ public class SSOProvider {
 
     public boolean isActive() { return Boolean.TRUE.equals(active); }
     public void setActive(boolean active) { this.active = active; }
+    
+    public Tenant getTenant() { return tenant; }
+    public void setTenant(Tenant tenant) { this.tenant = tenant; }
 }
 
 

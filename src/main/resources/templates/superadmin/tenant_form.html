@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Tenant Form - kanna.io</title>
+    <link rel="stylesheet" th:href="@{/css/netflix.css}">
+</head>
+<body class="nf-body">
+<div class="nf-header">
+    <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="color: #e50914; font-size: 32px;">k</span>
+        <span style="font-size: 24px; font-weight: 600;">kanna.io - Tenant Management</span>
+    </div>
+    <div>
+        <a class="nf-button nf-secondary" th:href="@{/super-admin/dashboard}">Back</a>
+    </div>
+</div>
+
+<div class="nf-container">
+    <h2 th:text="${tenant.tenantId != null ? 'Edit Tenant' : 'Create New Tenant'}">Create Tenant</h2>
+    <p style="color: #aaa; margin-bottom: 24px;" th:if="${tenant.tenantId == null}">
+        Create a new tenant/company and its customer-admin user. The customer-admin will be able to manage end users for this company.
+    </p>
+    
+    <div th:if="${error}" style="background:#b81d24;color:#fff;padding:12px 16px;border-radius:6px;margin-bottom:20px;">[[${error}]]</div>
+    
+    <form class="nf-form" th:action="@{${tenant.tenantId != null ? '/super-admin/tenants/' + tenant.tenantId : '/super-admin/tenants'}}" method="post">
+        
+        <h3 style="margin-top: 0; color: #fff; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 20px;">Tenant/Company Information</h3>
+        
+        <label>Tenant/Company Name *</label>
+        <input type="text" name="tenantName" th:value="${tenant.tenantName}" 
+               placeholder="Enter tenant/company name" required>
+        
+        <div th:if="${tenant.tenantId != null}">
+            <label>Status</label>
+            <select name="active">
+                <option th:value="true" th:selected="${tenant.active != null and tenant.active}">Active</option>
+                <option th:value="false" th:selected="${tenant.active == null or !tenant.active}">Inactive</option>
+            </select>
+        </div>
+        
+        <div th:if="${tenant.tenantId == null}">
+            <h3 style="margin-top: 32px; color: #fff; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 20px;">Customer Admin Account</h3>
+            <p style="color: #aaa; margin-bottom: 20px;">Create the customer-admin user who will manage this company. This user will be able to create and manage end users.</p>
+            
+            <label>Admin Username *</label>
+            <input type="text" name="adminUsername" 
+                   placeholder="Enter admin username (lowercase, 4+ characters)" required>
+            <small style="color: #aaa; display: block; margin-top: 4px;">Username must be lowercase and contain only letters, numbers, and underscores</small>
+            
+            <label style="margin-top: 16px;">Admin Email *</label>
+            <input type="email" name="adminEmail" 
+                   placeholder="Enter admin email" required>
+            
+            <label style="margin-top: 16px;">Admin First Name</label>
+            <input type="text" name="adminFirstName" 
+                   placeholder="Enter first name">
+            
+            <label style="margin-top: 16px;">Admin Last Name</label>
+            <input type="text" name="adminLastName" 
+                   placeholder="Enter last name">
+            
+            <label style="margin-top: 16px;">Admin Password *</label>
+            <input type="password" name="adminPassword" 
+                   placeholder="Enter password (6-10 characters)" required>
+            <small style="color: #aaa; display: block; margin-top: 4px;">Password must be between 6 and 10 characters</small>
+        </div>
+        
+        <div class="nf-actions" style="margin-top: 24px;">
+            <button type="submit" class="nf-button">Save</button>
+            <a class="nf-button nf-secondary" th:href="@{/super-admin/dashboard}">Cancel</a>
+        </div>
+    </form>
+</div>
+</body>
+</html>

@@ -17,7 +17,7 @@
                 <tbody>
                 <tr th:each="entry : ${attributes}">
                     <td th:text="${entry.key}"></td>
-                    <td th:text="${entry.value}"></td>
+                    <td th:text="${entry.value != null ? entry.value : ''}"></td>
                 </tr>
                 </tbody>
             </table>

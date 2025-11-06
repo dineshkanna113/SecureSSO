@@ -1,7 +1,9 @@
 package com.example.finalsso.controller;
 
 import com.example.finalsso.entity.SSOProvider;
+import com.example.finalsso.entity.User;
 import com.example.finalsso.repository.SSOProviderRepository;
+import com.example.finalsso.repository.UserRepository;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,10 +27,12 @@ import java.net.URI;
 public class SsoJwtController {
 
     private final SSOProviderRepository providerRepository;
+    private final UserRepository userRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public SsoJwtController(SSOProviderRepository providerRepository) {
+    public SsoJwtController(SSOProviderRepository providerRepository, UserRepository userRepository) {
         this.providerRepository = providerRepository;
+        this.userRepository = userRepository;
     }
 
     @GetMapping("/sso/jwt/authenticate")
@@ -198,9 +202,14 @@ public class SsoJwtController {
                 username = "jwt_user_" + java.util.UUID.randomUUID().toString().substring(0, 8);
             }
 
-            // Authenticate user
+            // Authenticate user - get user's actual role from database
+            String userRole = "ROLE_END_USER"; // Default role
+            User dbUser = userRepository.findByUsername(username).orElse(null);
+            if (dbUser != null) {
+                userRole = dbUser.getRole(); // Returns "ROLE_SUPER_ADMIN", "ROLE_CUSTOMER_ADMIN", or "ROLE_END_USER"
+            }
             var auth = new UsernamePasswordAuthenticationToken(username, "N/A",
-                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
+                    Collections.singletonList(new SimpleGrantedAuthority(userRole)));
             SecurityContextHolder.getContext().setAuthentication(auth);
 
             return "redirect:/user/dashboard";
@@ -300,9 +309,14 @@ public class SsoJwtController {
                 username = "jwt_user_" + java.util.UUID.randomUUID().toString().substring(0, 8);
             }
 
-            // Authenticate user
+            // Authenticate user - get user's actual role from database
+            String userRole = "ROLE_END_USER"; // Default role
+            User dbUser = userRepository.findByUsername(username).orElse(null);
+            if (dbUser != null) {
+                userRole = dbUser.getRole(); // Returns "ROLE_SUPER_ADMIN", "ROLE_CUSTOMER_ADMIN", or "ROLE_END_USER"
+            }
             var auth = new UsernamePasswordAuthenticationToken(username, "N/A",
-                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
+                    Collections.singletonList(new SimpleGrantedAuthority(userRole)));
             SecurityContextHolder.getContext().setAuthentication(auth);
 
             // Clear session

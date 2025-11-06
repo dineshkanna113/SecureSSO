@@ -2,7 +2,9 @@ package com.example.finalsso.controller;
 
 import com.example.finalsso.entity.SSOConfig;
 import com.example.finalsso.entity.SSOProvider;
+import com.example.finalsso.entity.User;
 import com.example.finalsso.repository.SSOProviderRepository;
+import com.example.finalsso.repository.UserRepository;
 import com.example.finalsso.service.SSOConfigService;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -34,11 +36,13 @@ public class SsoOAuthController {
 
 	private final SSOConfigService cfgService;
 	private final SSOProviderRepository providerRepository;
+	private final UserRepository userRepository;
 	private final RestTemplate restTemplate = new RestTemplate();
 
-	public SsoOAuthController(SSOConfigService cfgService, SSOProviderRepository providerRepository) {
+	public SsoOAuthController(SSOConfigService cfgService, SSOProviderRepository providerRepository, UserRepository userRepository) {
 		this.cfgService = cfgService;
 		this.providerRepository = providerRepository;
+		this.userRepository = userRepository;
 	}
 
 	@GetMapping("/sso/oauth2/authorize")
@@ -100,27 +104,65 @@ public class SsoOAuthController {
 		}
 		
 		String baseUrl = request.getRequestURL().toString().replace(request.getRequestURI(), "");
+		// Remove trailing slash from baseUrl if present
+		if (baseUrl.endsWith("/")) {
+			baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+		}
+		
 		String redirectUri = provider.getOidcRedirectUri();
 		if (redirectUri == null || redirectUri.trim().isEmpty()) {
 			redirectUri = baseUrl + "/sso/oauth2/callback";
 		} else {
 			redirectUri = redirectUri.trim(); // Remove leading/trailing spaces
+			// If redirect URI is relative, make it absolute
+			if (redirectUri.startsWith("/")) {
+				redirectUri = baseUrl + redirectUri;
+			}
+			// Validate that redirect URI is for our application, not miniOrange
+			if (redirectUri.contains("xecurify.com") || redirectUri.contains("miniorange")) {
+				// Reset to default if it points to miniOrange
+				redirectUri = baseUrl + "/sso/oauth2/callback";
+			}
 		}
 		
 		String state = UUID.randomUUID().toString();
+		String nonce = UUID.randomUUID().toString();
 		HttpSession session = request.getSession(true);
 		session.setAttribute("oauth_state", state);
+		session.setAttribute("oauth_nonce", nonce);
 		if (finalProviderId != null) {
 			session.setAttribute("oidc_provider_id", finalProviderId);
 		}
 		
+		// Ensure scope starts with "openid" for OIDC compliance
+		String normalizedScopes = scopes.replace(",", " ").replaceAll("\\s+", " ").trim();
+		if (!normalizedScopes.toLowerCase().startsWith("openid")) {
+			if (normalizedScopes.isEmpty()) {
+				normalizedScopes = "openid profile email";
+			} else {
+				normalizedScopes = "openid " + normalizedScopes;
+			}
+		}
+		
+		// Debug logging
+		System.out.println("DEBUG OIDC Authorization URL:");
+		System.out.println("  Client ID: " + clientId);
+		System.out.println("  Redirect URI: " + redirectUri);
+		System.out.println("  Scopes: " + normalizedScopes);
+		System.out.println("  Authorization Endpoint: " + authz);
+		
+		// Build URL with correct parameter order for miniOrange: client_id, redirect_uri, response_type, scope, state, nonce
 		String url = authz
 				+ (authz.contains("?") ? "&" : "?")
-				+ "response_type=code"
-				+ "&client_id=" + url(clientId)
+				+ "client_id=" + url(clientId)
 				+ "&redirect_uri=" + url(redirectUri)
-				+ "&scope=" + url(scopes.replace(",", " ").replaceAll("\\s+", " "))
-				+ "&state=" + url(state);
+				+ "&response_type=code"
+				+ "&scope=" + url(normalizedScopes)
+				+ "&state=" + url(state)
+				+ "&nonce=" + url(nonce);
+		
+		System.out.println("  Full URL: " + url);
+		
 		return "redirect:" + url;
 	}
 	
@@ -139,21 +181,51 @@ public class SsoOAuthController {
 			return "redirect:/login?error=config";
 		}
 		String baseUrl = request.getRequestURL().toString().replace(request.getRequestURI(), "");
+		// Remove trailing slash from baseUrl if present
+		if (baseUrl.endsWith("/")) {
+			baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+		}
+		
 		String redirectUri = cfg.getOidcRedirectUri();
 		if (redirectUri == null || redirectUri.trim().isEmpty()) {
 			redirectUri = baseUrl + "/sso/oauth2/callback";
 		} else {
 			redirectUri = redirectUri.trim(); // Remove leading/trailing spaces
+			// If redirect URI is relative, make it absolute
+			if (redirectUri.startsWith("/")) {
+				redirectUri = baseUrl + redirectUri;
+			}
+			// Validate that redirect URI is for our application, not miniOrange
+			if (redirectUri.contains("xecurify.com") || redirectUri.contains("miniorange")) {
+				// Reset to default if it points to miniOrange
+				redirectUri = baseUrl + "/sso/oauth2/callback";
+			}
 		}
 		String state = UUID.randomUUID().toString();
-		request.getSession(true).setAttribute("oauth_state", state);
+		String nonce = UUID.randomUUID().toString();
+		HttpSession session = request.getSession(true);
+		session.setAttribute("oauth_state", state);
+		session.setAttribute("oauth_nonce", nonce);
+		
+		// Ensure scope starts with "openid" for OIDC compliance
+		String normalizedScopes = scopes.replace(",", " ").replaceAll("\\s+", " ").trim();
+		if (!normalizedScopes.toLowerCase().startsWith("openid")) {
+			if (normalizedScopes.isEmpty()) {
+				normalizedScopes = "openid profile email";
+			} else {
+				normalizedScopes = "openid " + normalizedScopes;
+			}
+		}
+		
+		// Build URL with correct parameter order for miniOrange: client_id, redirect_uri, response_type, scope, state, nonce
 		String url = authz
 				+ (authz.contains("?") ? "&" : "?")
-				+ "response_type=code"
-				+ "&client_id=" + url(clientId)
+				+ "client_id=" + url(clientId)
 				+ "&redirect_uri=" + url(redirectUri)
-				+ "&scope=" + url(scopes.replace(",", " ").replaceAll("\\s+", " "))
-				+ "&state=" + url(state);
+				+ "&response_type=code"
+				+ "&scope=" + url(normalizedScopes)
+				+ "&state=" + url(state)
+				+ "&nonce=" + url(nonce);
 		return "redirect:" + url;
 	}
 
@@ -167,15 +239,32 @@ public class SsoOAuthController {
 			if (error != null) {
 				return "redirect:/login?error=" + error;
 			}
-			HttpSession session = request.getSession(false);
-			String expected = session != null ? (String) session.getAttribute("oauth_state") : null;
-			if (expected == null || state == null || !expected.equals(state) || code == null) {
-				return "redirect:/login?error=invalid";
+			if (code == null) {
+				return "redirect:/login?error=no_code";
 			}
 			
-			// Get provider from session if available
+			HttpSession session = request.getSession(false);
+			boolean isIdpInitiated = false;
+			
+			// Validate state for SP-initiated flows (state must exist and match)
+			// For IdP-initiated flows, state may be null or missing
+			String expected = session != null ? (String) session.getAttribute("oauth_state") : null;
+			if (expected != null && state != null) {
+				// SP-initiated: validate state
+				if (!expected.equals(state)) {
+					return "redirect:/login?error=invalid_state";
+				}
+			} else if (state == null && expected == null) {
+				// IdP-initiated flow: no state parameter, proceed without state validation
+				isIdpInitiated = true;
+			} else if (state != null && expected == null) {
+				// State provided but not in session - could be IdP-initiated or session expired
+				isIdpInitiated = true;
+			}
+			
+			// Get provider from session if available (SP-initiated)
 			Long providerId = null;
-			if (session != null) {
+			if (session != null && !isIdpInitiated) {
 				Object attr = session.getAttribute("oidc_provider_id");
 				if (attr instanceof Long) {
 					providerId = (Long) attr;
@@ -187,6 +276,40 @@ public class SsoOAuthController {
 				provider = providerRepository.findById(providerId).orElse(null);
 				if (session != null) {
 					session.removeAttribute("oidc_provider_id");
+					session.removeAttribute("oauth_state");
+					session.removeAttribute("oauth_nonce");
+				}
+			}
+			
+			// For IdP-initiated flows, find active provider by matching redirect URI
+			if (provider == null && isIdpInitiated) {
+				String currentCallbackUrl = request.getRequestURL().toString();
+				// Try to find active OIDC provider that matches this callback URL
+				provider = providerRepository.findAll().stream()
+					.filter(p -> p.isActive() && "OIDC".equalsIgnoreCase(p.getType()))
+					.filter(p -> {
+						String baseUrl = request.getRequestURL().toString().replace(request.getRequestURI(), "");
+						String redirectUri = p.getOidcRedirectUri();
+						if (redirectUri == null || redirectUri.trim().isEmpty()) {
+							redirectUri = baseUrl + "/sso/oauth2/callback";
+						} else {
+							redirectUri = redirectUri.trim();
+							if (redirectUri.startsWith("/")) {
+								redirectUri = baseUrl + redirectUri;
+							}
+						}
+						return currentCallbackUrl.equals(redirectUri) || 
+							   currentCallbackUrl.startsWith(redirectUri.split("\\?")[0]);
+					})
+					.findFirst()
+					.orElse(null);
+				
+				// If still not found, use first active OIDC provider as fallback
+				if (provider == null) {
+					provider = providerRepository.findAll().stream()
+						.filter(p -> p.isActive() && "OIDC".equalsIgnoreCase(p.getType()))
+						.findFirst()
+						.orElse(null);
 				}
 			}
 			
@@ -207,11 +330,22 @@ public class SsoOAuthController {
 			}
 				
 				tokenEndpoint = provider.getOidcTokenEndpoint();
-				if (tokenEndpoint == null || tokenEndpoint.isEmpty()) {
-					tokenEndpoint = provider.getOidcIssuerUri();
-					if (tokenEndpoint != null && !tokenEndpoint.isEmpty() && !tokenEndpoint.endsWith("/token")) {
-						tokenEndpoint = tokenEndpoint + (tokenEndpoint.endsWith("/") ? "" : "/") + "token";
+				// Only fallback to issuer-based construction if token endpoint is not from discovery
+				if (tokenEndpoint == null || tokenEndpoint.trim().isEmpty()) {
+					String issuer = provider.getOidcIssuerUri();
+					if (issuer != null && !issuer.trim().isEmpty()) {
+						// Try to construct from issuer (but prefer discovery endpoint)
+						if (issuer.endsWith("/")) {
+							tokenEndpoint = issuer + "rest/oauth/token";
+						} else if (issuer.contains("/discovery/")) {
+							// For miniOrange discovery URLs, use the standard token endpoint
+							tokenEndpoint = issuer.replaceFirst("/discovery/[^/]+", "") + "/rest/oauth/token";
+						} else {
+							tokenEndpoint = issuer + (issuer.endsWith("/") ? "" : "/") + "token";
+						}
 					}
+				} else {
+					tokenEndpoint = tokenEndpoint.trim();
 				}
 				if (tokenEndpoint == null || tokenEndpoint.isEmpty()) {
 					return "redirect:/login?error=oidc_token_endpoint_missing";
@@ -221,11 +355,22 @@ public class SsoOAuthController {
 				clientSecret = provider.getOidcClientSecret();
 				
 				userInfoUrl = provider.getOidcUserInfoEndpoint();
-				if (userInfoUrl == null || userInfoUrl.isEmpty()) {
+				// Only fallback to issuer-based construction if userinfo endpoint is not from discovery
+				if (userInfoUrl == null || userInfoUrl.trim().isEmpty()) {
 					String issuer = provider.getOidcIssuerUri();
-					if (issuer != null && !issuer.isEmpty()) {
-						userInfoUrl = issuer + (issuer.endsWith("/") ? "" : "/") + "userinfo";
+					if (issuer != null && !issuer.trim().isEmpty()) {
+						// Try to construct from issuer (but prefer discovery endpoint)
+						if (issuer.endsWith("/")) {
+							userInfoUrl = issuer + "rest/oauth/getuserinfo";
+						} else if (issuer.contains("/discovery/")) {
+							// For miniOrange discovery URLs, use the standard userinfo endpoint
+							userInfoUrl = issuer.replaceFirst("/discovery/[^/]+", "") + "/rest/oauth/getuserinfo";
+						} else {
+							userInfoUrl = issuer + (issuer.endsWith("/") ? "" : "/") + "userinfo";
+						}
 					}
+				} else {
+					userInfoUrl = userInfoUrl.trim();
 				}
 				if (userInfoUrl == null || userInfoUrl.isEmpty()) {
 					return "redirect:/login?error=oidc_userinfo_endpoint_missing";
@@ -313,8 +458,32 @@ public class SsoOAuthController {
 			Map<String, Object> ui = ures.getBody() != null ? ures.getBody() : Collections.emptyMap();
 			String username = String.valueOf(ui.getOrDefault("email", ui.getOrDefault("preferred_username", ui.getOrDefault("sub", "user"))));
 
-			// Authenticate in Spring Security context
-			var auth = new UsernamePasswordAuthenticationToken(username, "N/A", Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
+			// Check if this is a test flow
+			boolean isTest = session != null && Boolean.TRUE.equals(session.getAttribute("oidc_test"));
+			if (isTest) {
+				// Store test results in session and show result page
+				request.setAttribute("testSuccess", true);
+				request.setAttribute("testProtocol", "OIDC");
+				request.setAttribute("nameId", username);
+				request.setAttribute("attributes", ui);
+				// Clear test flags
+				if (session != null) {
+					session.removeAttribute("oidc_test");
+					session.removeAttribute("oidc_test_provider_id");
+				}
+				model.addAttribute("testProtocol", "OIDC");
+				model.addAttribute("nameId", username);
+				model.addAttribute("attributes", ui);
+				return "test_sso_result";
+			}
+
+			// Authenticate in Spring Security context - get user's actual role from database
+			String userRole = "ROLE_END_USER"; // Default role
+			User dbUser = userRepository.findByUsername(username).orElse(null);
+			if (dbUser != null) {
+				userRole = dbUser.getRole(); // Returns "ROLE_SUPER_ADMIN", "ROLE_CUSTOMER_ADMIN", or "ROLE_END_USER"
+			}
+			var auth = new UsernamePasswordAuthenticationToken(username, "N/A", Collections.singletonList(new SimpleGrantedAuthority(userRole)));
 			SecurityContextHolder.getContext().setAuthentication(auth);
 			return "redirect:/user/dashboard";
 		} catch (Exception e) {

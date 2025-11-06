@@ -70,10 +70,44 @@
             const warnUser = document.getElementById('reg-username-warn');
             const warnCpw = document.getElementById('reg-confirm-warn');
             const submitBtn = document.getElementById('reg-submit');
+            
+            // Username validation: lowercase only, min 4 chars
+            const usernameLower = username.toLowerCase();
+            const usernameValid = username.length >= 4 && /^[a-z0-9_]+$/.test(username) && username === usernameLower;
+            if (username && !usernameValid) {
+                warnUser.innerText = 'Username must be lowercase, at least 4 characters, and contain only letters, numbers, and underscores.';
+                warnUser.style.display = 'block';
+            }
+            
+            // Password validation: 6-10 characters
+            const pwValid = !pw || (pw.length >= 6 && pw.length <= 10);
+            const pwWarn = document.getElementById('reg-password-warn');
+            if (!pwWarn) {
+                const pwWarnEl = document.createElement('div');
+                pwWarnEl.id = 'reg-password-warn';
+                pwWarnEl.style.display = 'none';
+                pwWarnEl.style.color = '#e74c3c';
+                pwWarnEl.style.marginTop = '6px';
+                document.getElementById('reg-password').parentElement.parentElement.appendChild(pwWarnEl);
+            }
+            const pwWarnEl = document.getElementById('reg-password-warn');
+            if (pw && !pwValid) {
+                pwWarnEl.innerText = 'Password must be between 6 and 10 characters.';
+                pwWarnEl.style.display = 'block';
+            } else {
+                pwWarnEl.style.display = 'none';
+            }
+            
             const emailOk = /.+@.+\..+/.test(email);
             const cpwOk = pw && cpw && pw === cpw;
             warnCpw.style.display = cpw && !cpwOk ? 'block' : 'none';
-            const ready = username && emailOk && cpwOk && warnUser.style.display !== 'block';
+            
+            // Convert username to lowercase before submit
+            if (username && username !== usernameLower) {
+                document.getElementById('reg-username').value = usernameLower;
+            }
+            
+            const ready = usernameValid && username.length >= 4 && emailOk && pwValid && cpwOk && warnUser.style.display !== 'block';
             submitBtn.disabled = !ready;
         }
         let debounceU;
@@ -87,21 +121,24 @@
 <body class="nf-body">
 <div class="nf-header">Create your account</div>
 <div class="nf-container" style="max-width:520px;margin:auto;">
+    <div th:if="${error}" style="background:#b81d24;color:#fff;padding:10px 14px;border-radius:6px;margin-bottom:12px;">[[${error}]]</div>
     <form class="nf-form" th:action="@{/register}" method="post" th:object="${user}">
         <label>Username</label>
-        <input id="reg-username" type="text" th:field="*{username}" required oninput="onUserInput()">
+        <input id="reg-username" type="text" th:field="*{username}" required oninput="onUserInput()" pattern="[a-z0-9_]{4,}" title="Username must be lowercase, at least 4 characters, letters/numbers/underscores only.">
         <div id="reg-username-warn" style="display:none;color:#e74c3c;margin-top:6px;">Username already exists. Please choose another.</div>
+        <small style="color:#aaa; display:block; margin-top:4px;">Username must be lowercase, at least 4 characters, and contain only letters, numbers, and underscores.</small>
 
         <label>Email</label>
         <input id="reg-email" type="email" th:field="*{email}" required oninput="onEmailInput()">
 
         <label>Password</label>
         <div style="position:relative;">
-            <input id="reg-password" type="password" th:field="*{password}" required oninput="updateStrength()">
+            <input id="reg-password" type="password" th:field="*{password}" required oninput="updateStrength()" minlength="6" maxlength="10" pattern=".{6,10}" title="Password must be between 6 and 10 characters.">
             <button type="button" id="pw-eye" onclick="togglePassword('reg-password','pw-eye')" class="nf-eye">👁️</button>
         </div>
         <div class="nf-pw-meter"><div id="pw-bar" class="nf-pw-bar"></div></div>
         <div id="pw-label" class="nf-pw-label">Weak</div>
+        <small style="color:#aaa; display:block; margin-top:4px;">Password must be between 6 and 10 characters.</small>
 
         <label>Confirm Password</label>
         <div style="position:relative;">
@@ -109,6 +146,10 @@
             <button type="button" id="cpw-eye" onclick="togglePassword('reg-confirm','cpw-eye')" class="nf-eye">👁️</button>
         </div>
         <div id="reg-confirm-warn" style="display:none;color:#e74c3c;margin-top:6px;">Passwords do not match.</div>
+
+        <label>Company Name *</label>
+        <input id="reg-company" type="text" name="companyName" th:value="${companyName}" required placeholder="Enter your company/organization name">
+        <small style="color:#aaa; display:block; margin-top:4px;">If your company already exists, you'll be added to it. Otherwise, a new company will be created.</small>
 
         <div class="nf-actions">
             <button id="reg-submit" class="nf-button" type="submit" disabled>Create Account</button>

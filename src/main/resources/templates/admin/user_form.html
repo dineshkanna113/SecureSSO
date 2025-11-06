@@ -45,11 +45,15 @@
     <form class="nf-form" th:action="${user.id} != null ? @{'/admin/users/' + ${user.id}} : @{/admin/users}" method="post" th:object="${user}">
         <input type="hidden" id="userId" th:value="${user.id}" />
         <div th:if="${error}" style="background:#b81d24;color:#fff;padding:8px 12px;border-radius:4px;margin-bottom:10px;">[[${error}]]</div>
-        <label>Username</label>
-        <input id="username" type="text" th:field="*{username}" required oninput="debouncedUsernameCheck()">
+        <label>Username *</label>
+        <input id="username" type="text" th:field="*{username}" required oninput="debouncedUsernameCheck()" pattern="[a-z0-9_]{4,}" title="Username must be lowercase, at least 4 characters, letters/numbers/underscores only.">
+        <small style="color:#aaa; display:block; margin-top:4px;">Username must be lowercase, at least 4 characters, and contain only letters, numbers, and underscores.</small>
         <div id="username-warn" style="display:none;color:#e74c3c;margin-top:6px;">Username already exists. Please choose another.</div>
-        <label>Password</label>
-        <input type="password" th:field="*{password}" th:placeholder="${user.id == null} ? '' : 'Leave blank to keep'" />
+        <label>Password <span th:if="${user.id == null}">*</span></label>
+        <input type="password" th:field="*{password}" th:required="${user.id == null}" 
+               th:placeholder="${user.id == null} ? 'Required (6-10 characters)' : 'Leave blank to keep current password'" 
+               minlength="6" maxlength="10" th:pattern="${user.id == null} ? '.{6,10}' : null" />
+        <small style="color:#aaa; display:block; margin-top:4px;" th:if="${user.id == null}">Password must be between 6 and 10 characters.</small>
         <label>Email</label>
         <input type="email" th:field="*{email}">
         <label>First Name</label>
@@ -57,10 +61,16 @@
         <label>Last Name</label>
         <input type="text" th:field="*{lastName}">
         <label>Role</label>
-        <select th:field="*{role}">
-            <option value="ROLE_USER">ROLE_USER</option>
-            <option value="ROLE_ADMIN">ROLE_ADMIN</option>
+        <select th:field="*{role}" name="role">
+            <option value="ROLE_SUPER_ADMIN">Super Admin</option>
+            <option value="ROLE_CUSTOMER_ADMIN">Customer Admin</option>
+            <option value="ROLE_END_USER">End User</option>
         </select>
+        <small style="color:#aaa; display:block; margin-top:4px;">Super Admin: Full access to all tenants. Customer Admin: Manage their tenant only. End User: Limited access.</small>
+        
+        <label>Company/Tenant</label>
+        <input type="text" id="companyName" name="companyName" th:value="${user.tenant != null ? user.tenant.tenantName : ''}" placeholder="Enter company name (required for Customer Admin and End User)">
+        <small style="color:#aaa; display:block; margin-top:4px;">For Customer Admin and End User: Enter company name to assign tenant. Super Admin has no tenant.</small>
         <label>Enabled</label>
         <select th:field="*{enabled}">
             <option th:value="true">true</option>

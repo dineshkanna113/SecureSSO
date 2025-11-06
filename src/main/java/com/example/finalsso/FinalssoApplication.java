@@ -21,12 +21,14 @@ public class FinalssoApplication {
     CommandLineRunner seedAdmin(UserRepository repo, PasswordEncoder encoder) {
         return args -> {
             repo.findByUsername("admin").ifPresentOrElse(existing -> {
-                // Ensure the built-in admin always has ROLE_ADMIN and is enabled
-                existing.setRole("ROLE_ADMIN");
+                // Ensure the built-in admin always has SUPER_ADMIN role and is enabled
+                existing.setUserRole(User.UserRole.SUPER_ADMIN);
                 existing.setEnabled(true);
                 if (existing.getPassword() == null || existing.getPassword().length() < 20) {
                     existing.setPassword(encoder.encode("admin123"));
                 }
+                // Super admin has no tenant
+                existing.setTenant(null);
                 repo.save(existing);
             }, () -> {
                 User admin = new User();
@@ -35,8 +37,9 @@ public class FinalssoApplication {
                 admin.setEmail("admin@example.com");
                 admin.setFirstName("System");
                 admin.setLastName("Admin");
-                admin.setRole("ROLE_ADMIN");
+                admin.setUserRole(User.UserRole.SUPER_ADMIN);
                 admin.setEnabled(true);
+                admin.setTenant(null); // Super admin has no tenant
                 repo.save(admin);
             });
         };

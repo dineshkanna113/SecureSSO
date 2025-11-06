@@ -39,7 +39,14 @@ public class SSOProviderController {
         if (p.getName() == null || p.getName().trim().isEmpty()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Provider name is required"));
         }
-        if (repo.existsByNameIgnoreCase(p.getName().trim())) {
+        // Check for duplicate name (tenant-aware check will be added later)
+        boolean exists = repo.findAll().stream()
+            .anyMatch(provider -> provider.getName() != null && 
+                     provider.getName().equalsIgnoreCase(p.getName().trim()) &&
+                     (p.getTenant() == null ? provider.getTenant() == null : 
+                      p.getTenant() != null && provider.getTenant() != null &&
+                      p.getTenant().getTenantId().equals(provider.getTenant().getTenantId())));
+        if (exists) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", "Provider name must be unique"));
         }
         return ResponseEntity.status(HttpStatus.CREATED).body(repo.save(p));
@@ -52,9 +59,15 @@ public class SSOProviderController {
             if (newName == null || newName.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Provider name is required"));
             }
-            repo.findByNameIgnoreCase(newName).ifPresent(clash -> {
-                if (!clash.getId().equals(id)) throw new RuntimeException("DUP");
-            });
+            // Check for duplicate name (tenant-aware check will be added later)
+            repo.findAll().stream()
+                .filter(clash -> clash.getName() != null && clash.getName().equalsIgnoreCase(newName) &&
+                               !clash.getId().equals(id) &&
+                               (existing.getTenant() == null ? clash.getTenant() == null :
+                                existing.getTenant() != null && clash.getTenant() != null &&
+                                existing.getTenant().getTenantId().equals(clash.getTenant().getTenantId())))
+                .findFirst()
+                .ifPresent(clash -> { throw new RuntimeException("DUP"); });
             existing.setName(newName);
             existing.setType(p.getType());
             // OIDC
@@ -132,8 +145,12 @@ public class SSOProviderController {
     public ResponseEntity<?> checkName(@RequestParam String name, @RequestParam(required = false) Long excludeId) {
         String n = name == null ? "" : name.trim();
         if (n.isEmpty()) return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Name required"));
-        var opt = repo.findByNameIgnoreCase(n);
-        if (opt.isPresent() && (excludeId == null || !opt.get().getId().equals(excludeId))) {
+        // Check for duplicate name (tenant-aware check will be added later)
+        var opt = repo.findAll().stream()
+            .filter(provider -> provider.getName() != null && provider.getName().equalsIgnoreCase(n) &&
+                    (excludeId == null || !provider.getId().equals(excludeId)))
+            .findFirst();
+        if (opt.isPresent()) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", "Provider name already exists"));
         }
         return ResponseEntity.ok(Map.of("ok", true));
@@ -224,10 +241,20 @@ public class SSOProviderController {
     }
 
     private Map<String,Object> parseSamlMetadata(InputStream in) throws Exception {
+        // Read full XML content first
+        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+        byte[] buffer = new byte[1024];
+        int len;
+        while ((len = in.read(buffer)) != -1) {
+            baos.write(buffer, 0, len);
+        }
+        byte[] bytes = baos.toByteArray();
+        String fullXml = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+        
         var doc = DocumentBuilderFactory.newInstance();
         doc.setNamespaceAware(true);
         var builder = doc.newDocumentBuilder();
-        var xml = builder.parse(in);
+        var xml = builder.parse(new java.io.ByteArrayInputStream(bytes));
         var map = new HashMap<String,Object>();
         var entityId = xml.getDocumentElement().getAttribute("entityID");
         map.put("samlEntityId", entityId);
@@ -239,8 +266,15 @@ public class SSOProviderController {
         }
         var certNodes = xml.getElementsByTagNameNS("http://www.w3.org/2000/09/xmldsig#", "X509Certificate");
         if (certNodes.getLength() > 0) {
-            map.put("samlX509Cert", certNodes.item(0).getTextContent().trim());
+            // Convert base64 certificate to PEM format
+            String base64Cert = certNodes.item(0).getTextContent().trim();
+            String pemCert = "-----BEGIN CERTIFICATE-----\n" + 
+                           base64Cert.replaceAll("(.{64})", "$1\n") + 
+                           "\n-----END CERTIFICATE-----";
+            map.put("samlX509Cert", pemCert);
         }
+        // Include full metadata XML
+        map.put("samlMetadataXml", fullXml);
         return map;
     }
 

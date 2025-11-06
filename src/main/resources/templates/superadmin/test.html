@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Test - Super Admin</title>
+    <link rel="stylesheet" th:href="@{/css/netflix.css}">
+</head>
+<body class="nf-body">
+<div class="nf-header">Super Admin Test Page</div>
+<div class="nf-container">
+    <h2>Authentication Test</h2>
+    <div class="nf-card">
+        <p><strong>Username:</strong> <span th:text="${username}">N/A</span></p>
+        <p><strong>Authenticated:</strong> <span th:text="${authenticated}">N/A</span></p>
+        <p><strong>Authorities:</strong></p>
+        <ul>
+            <li th:each="auth : ${authorities}" th:text="${auth}"></li>
+        </ul>
+        <a class="nf-button" th:href="@{/super-admin/dashboard}">Try Dashboard</a>
+    </div>
+</div>
+</body>
+</html>
+

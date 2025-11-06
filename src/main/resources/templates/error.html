@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Error - kanna.io</title>
+    <link rel="stylesheet" th:href="@{/css/netflix.css}">
+</head>
+<body class="nf-body">
+<div class="nf-header">
+    <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="color: #e50914; font-size: 32px;">k</span>
+        <span style="font-size: 24px; font-weight: 600;">kanna.io</span>
+    </div>
+</div>
+<div class="nf-container">
+    <div class="nf-card" style="text-align: center; padding: 48px;">
+        <h1 style="color: #e50914; margin-bottom: 20px;">Error</h1>
+        <p th:text="${message != null ? message : 'An error occurred'}">An error occurred</p>
+        <div style="margin-top: 32px;">
+            <a class="nf-button" th:href="@{/login}">Go to Login</a>
+        </div>
+    </div>
+</div>
+</body>
+</html>
+

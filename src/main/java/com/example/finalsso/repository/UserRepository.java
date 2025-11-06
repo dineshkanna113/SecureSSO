@@ -7,6 +7,8 @@ import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByUsername(String username);
-    long countByRole(String role);
+    long countByUserRole(User.UserRole role);
+    java.util.List<User> findByTenant_TenantId(Long tenantId);
+    java.util.List<User> findByTenantIsNull(); // For SUPER_ADMIN users without tenant
 }
 

@@ -27,6 +27,7 @@
                 <th>First Name</th>
                 <th>Last Name</th>
                 <th>Role</th>
+                <th>Tenant</th>
                 <th>Enabled</th>
                 <th>Actions</th>
             </tr>
@@ -39,6 +40,7 @@
                 <td th:text="${u.firstName}"></td>
                 <td th:text="${u.lastName}"></td>
                 <td th:text="${u.role}"></td>
+                <td th:text="${u.tenant != null ? u.tenant.tenantName : 'N/A'}"></td>
                 <td><span th:text="${u.enabled} ? 'Yes' : 'No'"></span></td>
                 <td>
                     <a class="nf-button nf-secondary" th:href="@{'/admin/users/' + ${u.id} + '/edit'}">Edit</a>
@@ -110,16 +112,17 @@
         </div>
 
         <div id="addSsoModal" class="nf-modal" style="display:none">
-            <div class="nf-modal-content">
+            <div class="nf-modal-content" style="max-height:90vh; display:flex; flex-direction:column;">
                 <div class="nf-modal-header">Add SSO Provider</div>
-                <div class="nf-modal-body nf-form">
+                <div class="nf-modal-body nf-form" style="overflow-y:auto; flex:1; max-height:calc(90vh - 120px);">
                     <div class="nf-card" style="margin-bottom:10px;">
                         <div style="font-weight:700; margin-bottom:6px;">Provider Details</div>
                         <small style="color:#aaa; display:block; margin-bottom:8px;">Give it a clear name and choose the type.</small>
                     <label>Provider Name</label>
                         <input id="newProviderName" type="text" placeholder="MyCompany Okta / AzureAD / Auth0 / miniOrange">
-                    <label>Type</label>
-                        <select id="newProviderType" onchange="onTypeChange(this.value)">
+                    <label>Type *</label>
+                        <select id="newProviderType" onchange="onTypeChange(this.value)" required>
+                        <option value="">Select Type</option>
                         <option value="OIDC">OIDC / OAuth2</option>
                         <option value="SAML">SAML</option>
                         <option value="JWT">JWT</option>
@@ -137,6 +140,7 @@
                                 <button class="nf-button nf-secondary" type="button" onclick="importOidcDiscovery()">Import from Discovery URL</button>
                             </div>
                             <small style="color:#aaa; display:block; margin-top:6px;">miniOrange: Use your discovery URL with Client ID, e.g., <code>https://kanna.xecurify.com/moas/discovery/v2.0/{CLIENT_ID}/.well-known/openid-configuration</code></small>
+                            <small style="color:#ff9800; display:block; margin-top:6px; font-weight:600;">⚠️ Important: After importing, make sure the Redirect URI in this form matches exactly what you configured in miniOrange (typically: <code id="oidcCallbackUrl" style="color:#fff;">http://localhost:8080/sso/oauth2/callback</code>)</small>
                         </div>
 
                         <div class="nf-or-divider">— or —</div>
@@ -147,8 +151,9 @@
                         <input id="newOidcClientId" type="text">
                             <label>Client Secret *</label>
                         <input id="newOidcClientSecret" type="password">
-                            <label>Redirect URI (Callback URL)</label>
-                            <input id="newOidcRedirectUri" type="text" placeholder="http://localhost:8080/sso/oauth2/callback">
+                            <label>Redirect URI (Callback URL) *</label>
+                            <input id="newOidcRedirectUri" type="text" placeholder="http://localhost:8080/sso/oauth2/callback" required>
+                            <small style="color:#ff9800; display:block; margin-top:4px; font-weight:600;">⚠️ This Redirect URI must match EXACTLY what you configured in miniOrange. Copy this value: <code id="oidcRedirectUriCopy" style="color:#fff; background:#333; padding:2px 6px; border-radius:3px;">http://localhost:8080/sso/oauth2/callback</code></small>
                             <label>Issuer URL</label>
                             <input id="newOidcIssuerUri" type="text" placeholder="https://kanna.xecurify.com/moas/discovery/v2.0/{CLIENT_ID}">
                             <label>Scopes</label>
@@ -337,7 +342,9 @@ function editProvider(id){
     fetch(`/api/sso/providers/${id}`).then(r=>r.json()).then(p=>{
         document.getElementById('addSsoModal').style.display='flex';
         document.getElementById('newProviderName').value = p.name||'';
-        document.getElementById('newProviderType').value = p.type||'OIDC';
+        const typeSelect = document.getElementById('newProviderType');
+        typeSelect.value = p.type||'OIDC';
+        typeSelect.disabled = true; // Make readonly in edit mode
         onTypeChange(p.type||'OIDC');
         // OIDC
         document.getElementById('newOidcClientId').value = p.oidcClientId||'';
@@ -385,7 +392,9 @@ async function testProvider(id){
 }
 async function saveProvider(){
     const id = document.getElementById('saveProviderId').value;
-    const type = document.getElementById('newProviderType').value;
+    const typeSelect = document.getElementById('newProviderType');
+    const type = typeSelect.value;
+    if(!type){ alert('Please select a provider type'); return; }
     const name = document.getElementById('newProviderName').value.trim();
     if(!name){ alert('Provider name is required'); return; }
     const chk = await fetch(`/api/sso/providers/check-name?name=${encodeURIComponent(name)}${id?`&excludeId=${id}`:''}`);
@@ -419,7 +428,18 @@ async function saveProvider(){
     }
     const res = await fetch(id?`/api/sso/providers/${id}`:'/api/sso/providers', { method: id?'PUT':'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
     if(res.status===409){ alert('Provider name already exists'); return; }
-    if(res.ok){ document.getElementById('saveProviderId').value=''; nf.closeModal('addSsoModal'); loadProviders(); }
+    if(res.ok){ 
+        // Reset form
+        document.getElementById('saveProviderId').value=''; 
+        document.getElementById('newProviderName').value='';
+        typeSelect.value='';
+        typeSelect.disabled = false; // Re-enable type select
+        document.getElementById('newOidcFields').style.display='none';
+        document.getElementById('newSamlFields').style.display='none';
+        document.getElementById('newJwtFields').style.display='none';
+        nf.closeModal('addSsoModal'); 
+        loadProviders(); 
+    }
 }
 window.addEventListener('DOMContentLoaded', function() {
     loadProviders();
@@ -436,8 +456,29 @@ window.addEventListener('DOMContentLoaded', function() {
     }
     // OIDC redirect URI
     const oidcRedirectInput = document.getElementById('newOidcRedirectUri');
+    const oidcCallbackUrlEl = document.getElementById('oidcCallbackUrl');
+    const oidcRedirectUriCopyEl = document.getElementById('oidcRedirectUriCopy');
+    const callbackUrl = baseUrl + '/sso/oauth2/callback';
+    
     if (oidcRedirectInput && !oidcRedirectInput.value) {
-        oidcRedirectInput.placeholder = baseUrl + '/sso/oauth2/callback';
+        oidcRedirectInput.placeholder = callbackUrl;
+    }
+    
+    // Update both display elements
+    if (oidcCallbackUrlEl) {
+        oidcCallbackUrlEl.textContent = (oidcRedirectInput && oidcRedirectInput.value) ? oidcRedirectInput.value : callbackUrl;
+    }
+    if (oidcRedirectUriCopyEl) {
+        oidcRedirectUriCopyEl.textContent = (oidcRedirectInput && oidcRedirectInput.value) ? oidcRedirectInput.value : callbackUrl;
+    }
+    
+    // Add listener to update display when user types
+    if (oidcRedirectInput) {
+        oidcRedirectInput.addEventListener('input', function() {
+            const value = this.value || callbackUrl;
+            if (oidcCallbackUrlEl) oidcCallbackUrlEl.textContent = value;
+            if (oidcRedirectUriCopyEl) oidcRedirectUriCopyEl.textContent = value;
+        });
     }
 });
 async function importOidcDiscovery(){
@@ -455,11 +496,23 @@ async function importOidcDiscovery(){
             if(data.oidcScopes) document.getElementById('newOidcScopes').value = data.oidcScopes||'openid profile email';
             // Auto-set redirect URI if not already set
             const redirectInput = document.getElementById('newOidcRedirectUri');
+            const callbackUrlEl = document.getElementById('oidcCallbackUrl');
+            const redirectUriCopyEl = document.getElementById('oidcRedirectUriCopy');
+            const baseUrl = window.location.origin;
+            const callbackUrl = baseUrl + '/sso/oauth2/callback';
+            
             if(!redirectInput.value) {
-                const baseUrl = window.location.origin;
-                redirectInput.value = baseUrl + '/sso/oauth2/callback';
+                redirectInput.value = callbackUrl;
             }
-            alert('OIDC configuration imported successfully! Please enter your Client ID and Client Secret manually.');
+            // Update both display elements
+            const displayValue = redirectInput.value || callbackUrl;
+            if (callbackUrlEl) {
+                callbackUrlEl.textContent = displayValue;
+            }
+            if (redirectUriCopyEl) {
+                redirectUriCopyEl.textContent = displayValue;
+            }
+            alert('OIDC configuration imported successfully!\n\n⚠️ IMPORTANT:\n1. Enter your Client ID and Client Secret from miniOrange\n2. Verify the Redirect URI matches your miniOrange configuration: ' + (redirectInput.value || window.location.origin + '/sso/oauth2/callback') + '\n3. Make sure this exact Redirect URI is configured in your miniOrange app settings');
         } else {
             alert('Failed to import OIDC configuration. Please check the URL.');
         }

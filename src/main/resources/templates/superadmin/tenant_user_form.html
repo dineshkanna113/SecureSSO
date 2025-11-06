@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>User Form - kanna.io</title>
+    <link rel="stylesheet" th:href="@{/css/netflix.css}">
+</head>
+<body class="nf-body">
+<div class="nf-header">
+    <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="color: #e50914; font-size: 32px;">k</span>
+        <span style="font-size: 24px; font-weight: 600;">kanna.io - <span th:text="${tenant.tenantName}">Tenant</span> User</span>
+    </div>
+    <div>
+        <a class="nf-button nf-secondary" th:href="@{'/super-admin/tenants/' + ${tenantId} + '/users'}">Back</a>
+    </div>
+</div>
+
+<div class="nf-container">
+    <h2 th:text="${user.id != null ? 'Edit User' : 'Add New User'}">Add User</h2>
+    <p style="color: #aaa; margin-bottom: 20px;">Tenant: <strong th:text="${tenant.tenantName}">Tenant</strong></p>
+    
+    <div th:if="${error}" style="background:#b81d24;color:#fff;padding:12px 16px;border-radius:6px;margin-bottom:20px;">[[${error}]]</div>
+    
+    <th:block th:if="${user.id != null}">
+        <form class="nf-form" method="post" th:action="@{'/super-admin/tenants/' + ${tenantId} + '/users/' + ${user.id}}">
+            <label>Username *</label>
+            <input type="text" name="username" th:value="${user.username}" required 
+                   placeholder="Enter username (lowercase, alphanumeric, underscore only, min 4 chars)"
+                   readonly>
+            <small style="color:#aaa; display:block; margin-top:4px;">Lowercase only, minimum 4 characters, alphanumeric and underscore allowed.</small>
+            <small style="color:#aaa; display:block; margin-top:4px;">Username cannot be changed.</small>
+            
+            <label>Email</label>
+            <input type="email" name="email" th:value="${user.email}" placeholder="Enter email address">
+            
+            <label>First Name</label>
+            <input type="text" name="firstName" th:value="${user.firstName}" placeholder="Enter first name">
+            
+            <label>Last Name</label>
+            <input type="text" name="lastName" th:value="${user.lastName}" placeholder="Enter last name">
+            
+            <label>Role *</label>
+            <select name="userRole">
+                <option value="ROLE_CUSTOMER_ADMIN" th:selected="${user.userRole != null and user.userRole.name() == 'CUSTOMER_ADMIN'}">Customer Admin</option>
+                <option value="ROLE_END_USER" th:selected="${user.userRole == null or user.userRole.name() == 'END_USER'}">End User</option>
+            </select>
+            <small style="color:#aaa; display:block; margin-top:4px;">Customer Admin: Can manage tenant users. End User: Limited access.</small>
+            
+            <label>Password</label>
+            <input type="password" name="password" 
+                   placeholder="Enter password (6-10 characters)" 
+                   minlength="6" maxlength="10">
+            <small style="color:#aaa; display:block; margin-top:4px;">Leave empty to keep current password.</small>
+            
+            <label>Enabled</label>
+            <select name="enabled">
+                <option value="true" th:selected="${user.enabled == true}">Yes</option>
+                <option value="false" th:selected="${user.enabled == false}">No</option>
+            </select>
+            
+            <div class="nf-actions" style="margin-top: 24px;">
+                <button type="submit" class="nf-button">Save</button>
+                <a class="nf-button nf-secondary" th:href="@{'/super-admin/tenants/' + ${tenantId} + '/users'}">Cancel</a>
+            </div>
+        </form>
+    </th:block>
+    
+    <th:block th:unless="${user.id != null}">
+        <form class="nf-form" method="post" th:action="@{'/super-admin/tenants/' + ${tenantId} + '/users'}">
+            <label>Username *</label>
+            <input type="text" name="username" th:value="${user.username}" required 
+                   placeholder="Enter username (lowercase, alphanumeric, underscore only, min 4 chars)">
+            <small style="color:#aaa; display:block; margin-top:4px;">Lowercase only, minimum 4 characters, alphanumeric and underscore allowed.</small>
+            
+            <label>Email</label>
+            <input type="email" name="email" th:value="${user.email}" placeholder="Enter email address">
+            
+            <label>First Name</label>
+            <input type="text" name="firstName" th:value="${user.firstName}" placeholder="Enter first name">
+            
+            <label>Last Name</label>
+            <input type="text" name="lastName" th:value="${user.lastName}" placeholder="Enter last name">
+            
+            <label>Role *</label>
+            <select name="userRole">
+                <option value="ROLE_CUSTOMER_ADMIN" th:selected="${user.userRole != null and user.userRole.name() == 'CUSTOMER_ADMIN'}">Customer Admin</option>
+                <option value="ROLE_END_USER" th:selected="${user.userRole == null or user.userRole.name() == 'END_USER'}">End User</option>
+            </select>
+            <small style="color:#aaa; display:block; margin-top:4px;">Customer Admin: Can manage tenant users. End User: Limited access.</small>
+            
+            <label>Password *</label>
+            <input type="password" name="password" 
+                   required
+                   placeholder="Enter password (6-10 characters)" 
+                   minlength="6" maxlength="10">
+            <small style="color:#aaa; display:block; margin-top:4px;">Must be between 6 and 10 characters.</small>
+            
+            <label>Enabled</label>
+            <select name="enabled">
+                <option value="true" th:selected="${user.enabled == true}">Yes</option>
+                <option value="false" th:selected="${user.enabled == false}">No</option>
+            </select>
+            
+            <div class="nf-actions" style="margin-top: 24px;">
+                <button type="submit" class="nf-button">Save</button>
+                <a class="nf-button nf-secondary" th:href="@{'/super-admin/tenants/' + ${tenantId} + '/users'}">Cancel</a>
+            </div>
+        </form>
+    </th:block>
+</div>
+</body>
+</html>

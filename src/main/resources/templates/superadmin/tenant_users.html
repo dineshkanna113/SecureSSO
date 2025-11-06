@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Tenant Users - kanna.io</title>
+    <link rel="stylesheet" th:href="@{/css/netflix.css}">
+</head>
+<body class="nf-body">
+<div class="nf-header">
+    <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="color: #e50914; font-size: 32px;">k</span>
+        <span style="font-size: 24px; font-weight: 600;">kanna.io - <span th:text="${tenant.tenantName}">Tenant</span> Users</span>
+    </div>
+    <div>
+        <a class="nf-button nf-secondary" th:href="@{/super-admin/dashboard}">Back to Dashboard</a>
+    </div>
+</div>
+
+<div class="nf-container">
+    <div style="margin-bottom: 24px;">
+        <h2>Users for <span th:text="${tenant.tenantName}">Tenant</span></h2>
+        <p style="color: #aaa; margin: 8px 0;">Manage users assigned to this tenant.</p>
+    </div>
+    
+    <div th:if="${error != null or param.error != null}" style="background:#b81d24;color:#fff;padding:12px 16px;border-radius:6px;margin-bottom:20px;">
+        <span th:if="${error != null}" th:text="${error}"></span>
+        <span th:if="${param.error != null}">[[${param.error[0]}]]</span>
+    </div>
+    <div th:if="${success != null or param.success != null}" style="background:#2ecc71;color:#fff;padding:12px 16px;border-radius:6px;margin-bottom:20px;">
+        <span th:if="${success != null}" th:text="${success}"></span>
+        <span th:if="${param.success != null}">
+            <span th:if="${param.success[0] == 'user_created'}">User created successfully!</span>
+            <span th:if="${param.success[0] == 'user_updated'}">User updated successfully!</span>
+            <span th:if="${param.success[0] != 'user_created' and param.success[0] != 'user_updated'}">[[${param.success[0]}]]</span>
+        </span>
+    </div>
+    
+    <div class="nf-section">
+        <div class="section-header">
+            <h3>User Management</h3>
+            <a class="nf-button" th:href="@{'/super-admin/tenants/' + ${tenant.tenantId} + '/users/new'}">+ Add User</a>
+        </div>
+        
+        <table class="nf-table">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Email</th>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>Role</th>
+                <th>Enabled</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+                <tr th:if="${users == null or users.isEmpty()}">
+                    <td colspan="8" style="text-align: center; color: #aaa;">No users found for this tenant. Click "Add User" to create one.</td>
+                </tr>
+                <tr th:each="u : ${users}">
+                    <td th:text="${u.id}"></td>
+                    <td th:text="${u.username}"></td>
+                    <td th:text="${u.email}"></td>
+                    <td th:text="${u.firstName}"></td>
+                    <td th:text="${u.lastName}"></td>
+                    <td>
+                        <span th:switch="${u.userRole}">
+                            <span th:case="CUSTOMER_ADMIN" style="color: #ff9800;">Customer Admin</span>
+                            <span th:case="END_USER" style="color: #2ecc71;">End User</span>
+                            <span th:case="*" th:text="${u.userRole}"></span>
+                        </span>
+                    </td>
+                    <td>
+                        <span th:if="${u.enabled == true}" style="color: #2ecc71;">Yes</span>
+                        <span th:if="${u.enabled == false}" style="color: #b81d24;">No</span>
+                    </td>
+                    <td style="white-space: nowrap;">
+                        <a class="nf-button nf-secondary" th:href="@{'/super-admin/tenants/' + ${tenant.tenantId} + '/users/' + ${u.id} + '/edit'}" style="margin-right: 8px; text-decoration: none; display: inline-block; padding: 6px 12px; font-size: 14px;">Edit</a>
+                        <form th:action="@{'/super-admin/tenants/' + ${tenant.tenantId} + '/users/' + ${u.id} + '/delete'}" method="post" style="display:inline;" onsubmit="return confirm('Delete this user?');">
+                            <button class="nf-button nf-danger" type="submit" style="padding: 6px 12px; font-size: 14px;">Delete</button>
+                        </form>
+                    </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>
+

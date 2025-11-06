@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Admin Dashboard - kanna.io</title>
+    <link rel="stylesheet" th:href="@{/css/netflix.css}">
+    <style>
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #333;
+            text-align: center;
+        }
+        .stat-card h3 {
+            margin: 0 0 8px 0;
+            color: #aaa;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .stat-card .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #e50914;
+            margin: 0;
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .section-header h2 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body class="nf-body">
+<div class="nf-header">
+    <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="color: #e50914; font-size: 32px;">k</span>
+        <span style="font-size: 24px; font-weight: 600;">kanna.io - <span th:text="${company}">Company</span> Admin</span>
+    </div>
+    <div>
+        <a class="nf-button nf-secondary" th:href="@{/logout}">Logout</a>
+    </div>
+</div>
+
+<div class="nf-container">
+    <div style="margin-bottom: 24px;">
+        <h1 style="margin: 0 0 8px 0; font-size: 32px;">Welcome, <span th:text="${#authentication.name}">Admin</span>!</h1>
+        <p style="color: #aaa; margin: 0;">Manage end users and SSO configuration for <strong th:text="${company}">your company</strong>.</p>
+    </div>
+
+    <div th:if="${error != null or param.error != null}" style="background:#b81d24;color:#fff;padding:12px 16px;border-radius:6px;margin-bottom:20px;">
+        <span th:if="${error != null}" th:text="${error}"></span>
+        <span th:if="${param.error != null}">[[${param.error[0]}]]</span>
+    </div>
+    <div th:if="${success != null or param.success != null}" style="background:#2ecc71;color:#fff;padding:12px 16px;border-radius:6px;margin-bottom:20px;">
+        <span th:if="${success != null}" th:text="${success}"></span>
+        <span th:if="${param.success != null}">[[${param.success[0]}]]</span>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3>Total Users</h3>
+            <p class="stat-value" th:text="${users != null ? users.size() : 0}">0</p>
+        </div>
+        <div class="stat-card">
+            <h3>End Users</h3>
+            <p class="stat-value" style="color: #2ecc71;" th:text="${users != null ? (#lists.size(users.?[userRole.name() == 'END_USER'])) : 0}">0</p>
+        </div>
+        <div class="stat-card">
+            <h3>Admins</h3>
+            <p class="stat-value" style="color: #ff9800;" th:text="${users != null ? (#lists.size(users.?[userRole.name() == 'CUSTOMER_ADMIN'])) : 0}">0</p>
+        </div>
+    </div>
+
+    <div class="nf-section">
+        <div class="section-header">
+            <h2>End User Management</h2>
+            <a class="nf-button" th:href="@{'/' + ${company} + '/customer-admin/users/new'}">+ Add End User</a>
+        </div>
+        <p style="color: #aaa; margin-bottom: 20px;">Create and manage end users for your organization.</p>
+        <table class="nf-table">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Email</th>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>Role</th>
+                <th>Enabled</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+                <tr th:if="${users == null or users.isEmpty()}">
+                    <td colspan="8" style="text-align: center; color: #aaa;">No users found. Click "Add End User" to create one.</td>
+                </tr>
+                <tr th:each="u : ${users}">
+                    <td th:text="${u.id}"></td>
+                    <td th:text="${u.username}"></td>
+                    <td th:text="${u.email}"></td>
+                    <td th:text="${u.firstName}"></td>
+                    <td th:text="${u.lastName}"></td>
+                    <td>
+                        <span th:switch="${u.userRole}">
+                            <span th:case="CUSTOMER_ADMIN" style="color: #ff9800;">Customer Admin</span>
+                            <span th:case="END_USER" style="color: #2ecc71;">End User</span>
+                            <span th:case="*" th:text="${u.userRole}"></span>
+                        </span>
+                    </td>
+                    <td>
+                        <span th:if="${u.enabled == true}" style="color: #2ecc71;">Yes</span>
+                        <span th:if="${u.enabled == false}" style="color: #b81d24;">No</span>
+                    </td>
+                    <td>
+                        <a class="nf-button nf-secondary" th:href="@{'/' + ${company} + '/customer-admin/users/' + ${u.id} + '/edit'}" style="margin-right: 8px; text-decoration: none; display: inline-block; padding: 6px 12px; font-size: 14px;">Edit</a>
+                        <form th:action="@{'/' + ${company} + '/customer-admin/users/' + ${u.id} + '/delete'}" method="post" style="display:inline;" onsubmit="return confirm('Delete this user?');">
+                            <button class="nf-button nf-danger" type="submit" style="padding: 6px 12px; font-size: 14px;">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="nf-section">
+        <div class="section-header">
+            <h2>SSO Configuration</h2>
+        </div>
+        <p style="color: #aaa; margin-bottom: 20px;">Configure SSO settings for your organization. This allows your end users to sign in using your identity provider.</p>
+        
+        <!-- SSO Toggle -->
+        <div class="nf-card" style="margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div>
+                    <h3 style="margin: 0 0 8px 0; color: #fff;">SSO Status</h3>
+                    <p style="margin: 0; color: #aaa; font-size: 14px;">
+                        When enabled, users will see SSO login option on the password page.
+                    </p>
+                </div>
+                <form th:action="@{'/' + ${company} + '/customer-admin/sso/toggle'}" method="post" style="display: inline;">
+                    <input type="hidden" name="enabled" th:value="${!config.ssoEnabled}"/>
+                    <button type="submit" 
+                            class="nf-button" 
+                            th:classappend="${config.ssoEnabled} ? 'nf-success' : 'nf-secondary'"
+                            th:text="${config.ssoEnabled} ? 'Disable SSO' : 'Enable SSO'">
+                        Toggle SSO
+                    </button>
+                </form>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="color: #aaa; font-size: 14px;">Current Status:</span>
+                <span th:if="${config.ssoEnabled}" style="color: #2ecc71; font-weight: 600;">ENABLED</span>
+                <span th:unless="${config.ssoEnabled}" style="color: #b81d24; font-weight: 600;">DISABLED</span>
+            </div>
+        </div>
+        
+        <!-- SSO Configuration Form -->
+        <div class="nf-card" th:if="${config.ssoEnabled}">
+            <h3 style="margin: 0 0 20px 0; color: #fff;">SSO Provider Configuration</h3>
+            <form class="nf-form" th:action="@{'/' + ${company} + '/customer-admin/sso/config'}" method="post" id="ssoConfigForm">
+                <label>Provider Name *</label>
+                <select name="providerName" id="providerName" required onchange="updateProtocolOptions()">
+                    <option value="">Select Provider</option>
+                    <option value="MiniOrange" th:selected="${config.providerName == 'MiniOrange'}">MiniOrange</option>
+                    <option value="Okta" th:selected="${config.providerName == 'Okta'}">Okta</option>
+                    <option value="Azure AD" th:selected="${config.providerName == 'Azure AD'}">Azure AD</option>
+                    <option value="Google" th:selected="${config.providerName == 'Google'}">Google</option>
+                    <option value="Auth0" th:selected="${config.providerName == 'Auth0'}">Auth0</option>
+                    <option value="Custom" th:selected="${config.providerName == 'Custom'}">Custom</option>
+                </select>
+                
+                <label>Protocol *</label>
+                <select name="activeProtocol" id="activeProtocol" required onchange="toggleProtocolFields()">
+                    <option value="">Select Protocol</option>
+                    <option value="OIDC" th:selected="${config.activeProtocol == 'OIDC'}">OIDC / OAuth2</option>
+                    <option value="SAML" th:selected="${config.activeProtocol == 'SAML'}">SAML</option>
+                    <option value="JWT" th:selected="${config.activeProtocol == 'JWT'}">JWT</option>
+                </select>
+                
+                <!-- OIDC Fields -->
+                <div id="oidcFields" style="display: none;">
+                    <h4 style="color: #fff; margin: 20px 0 10px 0; border-bottom: 1px solid #333; padding-bottom: 8px;">OIDC Configuration</h4>
+                    <label>OIDC Client ID *</label>
+                    <input type="text" name="oidcClientId" th:value="${config.oidcClientId}" 
+                           placeholder="Enter OIDC Client ID" required>
+                    
+                    <label>OIDC Client Secret *</label>
+                    <input type="password" name="oidcClientSecret" th:value="${config.oidcClientSecret}" 
+                           placeholder="Enter OIDC Client Secret" required>
+                    
+                    <label>OIDC Issuer URI *</label>
+                    <input type="text" name="oidcIssuerUri" th:value="${config.oidcIssuerUri}" 
+                           placeholder="Enter OIDC Issuer URI (e.g., https://login.microsoftonline.com/tenant-id/v2.0)" required>
+                    
+                    <label>OIDC Redirect URI *</label>
+                    <input type="text" name="oidcRedirectUri" th:value="${config.oidcRedirectUri}" 
+                           placeholder="Enter OIDC Redirect URI (e.g., https://yourdomain.com/sso/oauth2/callback)" required>
+                    
+                    <label>OIDC Scopes</label>
+                    <input type="text" name="oidcScopes" th:value="${config.oidcScopes}" 
+                           placeholder="Enter scopes (e.g., openid profile email)" 
+                           value="openid profile email">
+                    
+                    <label>Authorization Endpoint</label>
+                    <input type="text" name="oidcAuthorizationEndpoint" th:value="${config.oidcAuthorizationEndpoint}" 
+                           placeholder="Enter Authorization Endpoint">
+                    
+                    <label>Token Endpoint</label>
+                    <input type="text" name="oidcTokenEndpoint" th:value="${config.oidcTokenEndpoint}" 
+                           placeholder="Enter Token Endpoint">
+                    
+                    <label>User Info Endpoint</label>
+                    <input type="text" name="oidcUserInfoEndpoint" th:value="${config.oidcUserInfoEndpoint}" 
+                           placeholder="Enter User Info Endpoint">
+                </div>
+                
+                <!-- SAML Fields -->
+                <div id="samlFields" style="display: none;">
+                    <h4 style="color: #fff; margin: 20px 0 10px 0; border-bottom: 1px solid #333; padding-bottom: 8px;">SAML Configuration</h4>
+                    
+                    <!-- Option 1: Import from Metadata URL -->
+                    <div class="nf-card" style="margin-bottom: 16px; padding: 16px; background: rgba(255,255,255,0.02);">
+                        <div style="font-weight: 600; margin-bottom: 8px; color: #fff;">Option 1 — Import from Metadata URL</div>
+                        <label>Metadata URL</label>
+                        <input type="text" id="samlMetadataUrl" 
+                               placeholder="https://idp.example.com/metadata">
+                        <button type="button" class="nf-button nf-secondary" onclick="importSamlMetadataUrl()" style="margin-top: 8px;">Import from URL</button>
+                    </div>
+                    
+                    <div style="text-align: center; color: #777; margin: 12px 0;">— or —</div>
+                    
+                    <!-- Option 2: Upload Metadata XML -->
+                    <div class="nf-card" style="margin-bottom: 16px; padding: 16px; background: rgba(255,255,255,0.02);">
+                        <div style="font-weight: 600; margin-bottom: 8px; color: #fff;">Option 2 — Upload Metadata XML</div>
+                        <label class="nf-button" style="display: inline-block; cursor: pointer; margin-top: 8px;">
+                            Upload XML File
+                            <input type="file" accept=".xml" style="display: none" onchange="importSamlMetadataFile(this)">
+                        </label>
+                    </div>
+                    
+                    <div style="text-align: center; color: #777; margin: 12px 0;">— or —</div>
+                    
+                    <!-- Option 3: Enter Manually -->
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 8px; color: #fff;">Option 3 — Enter Manually</div>
+                        <label>SAML Entity ID</label>
+                        <input type="text" name="samlEntityId" id="samlEntityId" th:value="${config.samlEntityId}" 
+                               placeholder="Enter SAML Entity ID (optional)">
+                        
+                        <label>SAML SSO URL</label>
+                        <input type="text" name="samlSsoUrl" id="samlSsoUrl" th:value="${config.samlSsoUrl}" 
+                               placeholder="Enter SAML SSO URL (optional)">
+                        
+                        <label>SAML X509 Certificate</label>
+                        <textarea name="samlX509Cert" id="samlX509Cert" rows="6" 
+                                  placeholder="Enter SAML X509 Certificate (PEM format, optional)">[[${config.samlX509Cert}]]</textarea>
+                        <small style="color: #aaa;">Paste the X.509 certificate in PEM format. Will be auto-filled when importing from metadata.</small>
+                        
+                        <label>SAML Metadata XML</label>
+                        <textarea name="samlMetadataXml" id="samlMetadataXml" rows="6" 
+                                  placeholder="Enter SAML Metadata XML (optional)">[[${config.samlMetadataXml}]]</textarea>
+                        <small style="color: #aaa;">Optional: Full SAML metadata XML</small>
+                    </div>
+                </div>
+                
+                <!-- JWT Fields -->
+                <div id="jwtFields" style="display: none;">
+                    <h4 style="color: #fff; margin: 20px 0 10px 0; border-bottom: 1px solid #333; padding-bottom: 8px;">JWT Configuration</h4>
+                    
+                    <!-- For MiniOrange and similar providers -->
+                    <div id="jwtSsoFlowFields" style="display: none;">
+                        <label>JWT SSO URL *</label>
+                        <input type="text" name="jwtSsoUrl" th:value="${config.jwtSsoUrl}" 
+                               placeholder="Enter JWT SSO URL (e.g., https://kanna.xecurify.com/moas/idp/jwtsso/379412)" required>
+                        
+                        <label>JWT Client ID *</label>
+                        <input type="text" name="jwtClientId" th:value="${config.jwtClientId}" 
+                               placeholder="Enter JWT Client ID" required>
+                        
+                        <label>JWT Client Secret *</label>
+                        <input type="password" name="jwtClientSecret" th:value="${config.jwtClientSecret}" 
+                               placeholder="Enter JWT Client Secret" required>
+                        
+                        <label>JWT Redirect URI *</label>
+                        <input type="text" name="jwtRedirectUri" th:value="${config.jwtRedirectUri}" 
+                               placeholder="Enter JWT Redirect URI" required>
+                    </div>
+                    
+                    <!-- Standard JWT validation fields -->
+                    <label>JWT Issuer</label>
+                    <input type="text" name="jwtIssuer" th:value="${config.jwtIssuer}" 
+                           placeholder="Enter JWT Issuer">
+                    
+                    <label>JWT Audience</label>
+                    <input type="text" name="jwtAudience" th:value="${config.jwtAudience}" 
+                           placeholder="Enter JWT Audience">
+                    
+                    <label>JWKS URI</label>
+                    <input type="text" name="jwtJwksUri" th:value="${config.jwtJwksUri}" 
+                           placeholder="Enter JWKS URI">
+                    
+                    <label>JWT Header Name</label>
+                    <input type="text" name="jwtHeaderName" th:value="${config.jwtHeaderName}" 
+                           placeholder="Enter JWT Header Name (e.g., Authorization)">
+                    
+                    <label>JWT Certificate</label>
+                    <textarea name="jwtCertificate" rows="4" 
+                              placeholder="Enter JWT Certificate (PEM format)">[[${config.jwtCertificate}]]</textarea>
+                    <small style="color: #aaa;">PEM-encoded public key/cert for signature validation</small>
+                </div>
+                
+                <div class="nf-actions" style="margin-top: 24px;">
+                    <button type="submit" class="nf-button">Save SSO Configuration</button>
+                </div>
+            </form>
+            
+            <script>
+                function toggleProtocolFields() {
+                    var protocol = document.getElementById('activeProtocol').value;
+                    var oidcFields = document.getElementById('oidcFields');
+                    var samlFields = document.getElementById('samlFields');
+                    var jwtFields = document.getElementById('jwtFields');
+                    
+                    // Hide all fields first
+                    oidcFields.style.display = 'none';
+                    samlFields.style.display = 'none';
+                    jwtFields.style.display = 'none';
+                    
+                    // Show relevant fields based on protocol
+                    if (protocol === 'OIDC') {
+                        oidcFields.style.display = 'block';
+                    } else if (protocol === 'SAML') {
+                        samlFields.style.display = 'block';
+                    } else if (protocol === 'JWT') {
+                        jwtFields.style.display = 'block';
+                        // For JWT, show SSO flow fields for MiniOrange
+                        var provider = document.getElementById('providerName').value;
+                        document.getElementById('jwtSsoFlowFields').style.display = 
+                            (provider === 'MiniOrange' || provider === 'Custom') ? 'block' : 'none';
+                    }
+                }
+                
+                function updateProtocolOptions() {
+                    var provider = document.getElementById('providerName').value;
+                    // Auto-select protocol based on provider
+                    if (provider === 'MiniOrange') {
+                        document.getElementById('activeProtocol').value = 'JWT';
+                    } else if (provider === 'Okta' || provider === 'Azure AD' || provider === 'Google' || provider === 'Auth0') {
+                        document.getElementById('activeProtocol').value = 'OIDC';
+                    }
+                    toggleProtocolFields();
+                }
+                
+                // SAML Metadata Import Functions
+                async function importSamlMetadataUrl() {
+                    const url = document.getElementById('samlMetadataUrl').value.trim();
+                    if (!url) {
+                        alert('Please enter a metadata URL');
+                        return;
+                    }
+                    try {
+                        const res = await fetch(`/api/sso/providers/metadata/fetch?url=${encodeURIComponent(url)}`);
+                        if (res.ok) {
+                            const data = await res.json();
+                            document.getElementById('samlEntityId').value = data.samlEntityId || '';
+                            document.getElementById('samlSsoUrl').value = data.samlSsoUrl || '';
+                            document.getElementById('samlX509Cert').value = data.samlX509Cert || '';
+                            if (data.samlMetadataXml) {
+                                document.getElementById('samlMetadataXml').value = data.samlMetadataXml;
+                            }
+                            alert('SAML metadata imported successfully!');
+                        } else {
+                            alert('Failed to import SAML metadata. Please check the URL.');
+                        }
+                    } catch (e) {
+                        alert('Error importing SAML metadata: ' + e.message);
+                    }
+                }
+                
+                async function importSamlMetadataFile(input) {
+                    if (!input.files || !input.files[0]) return;
+                    const formData = new FormData();
+                    formData.append('file', input.files[0]);
+                    try {
+                        const res = await fetch('/api/sso/providers/metadata/upload', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        if (res.ok) {
+                            const data = await res.json();
+                            document.getElementById('samlEntityId').value = data.samlEntityId || '';
+                            document.getElementById('samlSsoUrl').value = data.samlSsoUrl || '';
+                            document.getElementById('samlX509Cert').value = data.samlX509Cert || '';
+                            if (data.samlMetadataXml) {
+                                document.getElementById('samlMetadataXml').value = data.samlMetadataXml;
+                            }
+                            alert('SAML metadata imported successfully!');
+                        } else {
+                            alert('Failed to import SAML metadata.');
+                        }
+                    } catch (e) {
+                        alert('Error importing SAML metadata: ' + e.message);
+                    }
+                }
+                
+                // Initialize on page load
+                document.addEventListener('DOMContentLoaded', function() {
+                    // If config already exists, show appropriate fields
+                    var protocol = document.getElementById('activeProtocol').value;
+                    if (protocol) {
+                        toggleProtocolFields();
+                    }
+                });
+            </script>
+        </div>
+    </div>
+</div>
+</body>
+</html>
