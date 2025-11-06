@@ -316,10 +316,13 @@ public class SuperAdminController {
     @PostMapping("/tenants/{tenantId}/users")
     @org.springframework.transaction.annotation.Transactional
     public String createTenantUser(@PathVariable Long tenantId,
-                                   @ModelAttribute User user,
+                                   @RequestParam String username,
+                                   @RequestParam(required = false) String email,
+                                   @RequestParam(required = false) String firstName,
+                                   @RequestParam(required = false) String lastName,
                                    @RequestParam(required = false) String userRole,
                                    @RequestParam(required = false) String enabled,
-                                   @RequestParam(required = false) String password,
+                                   @RequestParam String password,
                                    Model model) {
         Optional<Tenant> tenantOpt = tenantRepository.findById(tenantId);
         if (tenantOpt.isEmpty()) {
@@ -329,9 +332,13 @@ public class SuperAdminController {
         Tenant tenant = tenantOpt.get();
         
         // Validate username
-        String username = user.getUsername();
         if (username == null || username.length() < 4) {
-            model.addAttribute("user", user);
+            User newUser = new User();
+            newUser.setUsername(username);
+            newUser.setEmail(email);
+            newUser.setFirstName(firstName);
+            newUser.setLastName(lastName);
+            model.addAttribute("user", newUser);
             model.addAttribute("tenant", tenant);
             model.addAttribute("tenantId", tenantId);
             model.addAttribute("error", "Username must be at least 4 characters long");
@@ -340,22 +347,38 @@ public class SuperAdminController {
         
         String usernameLower = username.toLowerCase();
         if (!username.equals(usernameLower) || !usernameLower.matches("^[a-z0-9_]+$")) {
-            model.addAttribute("user", user);
+            User newUser = new User();
+            newUser.setUsername(username);
+            newUser.setEmail(email);
+            newUser.setFirstName(firstName);
+            newUser.setLastName(lastName);
+            model.addAttribute("user", newUser);
             model.addAttribute("tenant", tenant);
             model.addAttribute("tenantId", tenantId);
             model.addAttribute("error", "Username must be lowercase and contain only letters, numbers, and underscores");
             return "superadmin/tenant_user_form";
         }
-        user.setUsername(usernameLower);
         
         // Check for duplicate username
         if (userRepository.findByUsername(usernameLower).isPresent()) {
-            model.addAttribute("user", user);
+            User newUser = new User();
+            newUser.setUsername(username);
+            newUser.setEmail(email);
+            newUser.setFirstName(firstName);
+            newUser.setLastName(lastName);
+            model.addAttribute("user", newUser);
             model.addAttribute("tenant", tenant);
             model.addAttribute("tenantId", tenantId);
             model.addAttribute("error", "Username already exists");
             return "superadmin/tenant_user_form";
         }
+        
+        // Create new user
+        User user = new User();
+        user.setUsername(usernameLower);
+        user.setEmail(email);
+        user.setFirstName(firstName);
+        user.setLastName(lastName);
         
         // Set role
         if (userRole != null && !userRole.isEmpty()) {
@@ -441,7 +464,10 @@ public class SuperAdminController {
     @PostMapping("/tenants/{tenantId}/users/{userId}")
     @org.springframework.transaction.annotation.Transactional
     public String updateTenantUser(@PathVariable Long tenantId, @PathVariable Long userId,
-                                   @ModelAttribute User user,
+                                   @RequestParam String username,
+                                   @RequestParam(required = false) String email,
+                                   @RequestParam(required = false) String firstName,
+                                   @RequestParam(required = false) String lastName,
                                    @RequestParam(required = false) String userRole,
                                    @RequestParam(required = false) String enabled,
                                    @RequestParam(required = false) String password,
@@ -465,7 +491,6 @@ public class SuperAdminController {
         }
         
         // Validate username
-        String username = user.getUsername();
         if (username == null || username.length() < 4) {
             model.addAttribute("user", existing);
             model.addAttribute("tenant", tenantOpt.get());
@@ -494,27 +519,31 @@ public class SuperAdminController {
         }
         
         existing.setUsername(usernameLower);
-        if (user.getEmail() != null) {
-            existing.setEmail(user.getEmail());
+        if (email != null) {
+            existing.setEmail(email);
         }
-        if (user.getFirstName() != null) {
-            existing.setFirstName(user.getFirstName());
+        if (firstName != null) {
+            existing.setFirstName(firstName);
         }
-        if (user.getLastName() != null) {
-            existing.setLastName(user.getLastName());
+        if (lastName != null) {
+            existing.setLastName(lastName);
         }
         // Enabled field from form parameter
         if (enabled != null) {
             existing.setEnabled("true".equalsIgnoreCase(enabled));
         }
         
-        // Update role
+        // Update role - prioritize the userRole parameter
         if (userRole != null && !userRole.isEmpty()) {
             existing.setRole(userRole);
             // Ensure tenant users cannot be SUPER_ADMIN
             if (existing.getUserRole() == User.UserRole.SUPER_ADMIN) {
                 existing.setUserRole(User.UserRole.CUSTOMER_ADMIN);
             }
+        }
+        // Ensure userRole is set (must not be null)
+        if (existing.getUserRole() == null) {
+            existing.setUserRole(User.UserRole.END_USER);
         }
         
         // Update password if provided (from request parameter)
@@ -528,14 +557,10 @@ public class SuperAdminController {
             }
             existing.setPassword(passwordEncoder.encode(password));
         }
+        // If password is not provided, keep existing password (don't overwrite)
         
         // Ensure tenant is still assigned
         existing.setTenant(tenantOpt.get());
-        
-        // Ensure userRole is set
-        if (existing.getUserRole() == null) {
-            existing.setUserRole(User.UserRole.END_USER);
-        }
         
         try {
             userRepository.saveAndFlush(existing);

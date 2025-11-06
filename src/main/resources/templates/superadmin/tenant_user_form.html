@@ -40,7 +40,7 @@
             <input type="text" name="lastName" th:value="${user.lastName}" placeholder="Enter last name">
             
             <label>Role *</label>
-            <select name="userRole">
+            <select name="userRole" required>
                 <option value="ROLE_CUSTOMER_ADMIN" th:selected="${user.userRole != null and user.userRole.name() == 'CUSTOMER_ADMIN'}">Customer Admin</option>
                 <option value="ROLE_END_USER" th:selected="${user.userRole == null or user.userRole.name() == 'END_USER'}">End User</option>
             </select>
@@ -82,7 +82,7 @@
             <input type="text" name="lastName" th:value="${user.lastName}" placeholder="Enter last name">
             
             <label>Role *</label>
-            <select name="userRole">
+            <select name="userRole" required>
                 <option value="ROLE_CUSTOMER_ADMIN" th:selected="${user.userRole != null and user.userRole.name() == 'CUSTOMER_ADMIN'}">Customer Admin</option>
                 <option value="ROLE_END_USER" th:selected="${user.userRole == null or user.userRole.name() == 'END_USER'}">End User</option>
             </select>

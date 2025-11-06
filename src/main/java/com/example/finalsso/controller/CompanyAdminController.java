@@ -1,8 +1,10 @@
 package com.example.finalsso.controller;
 
 import com.example.finalsso.entity.User;
+import com.example.finalsso.entity.SSOProvider;
 import com.example.finalsso.repository.UserRepository;
 import com.example.finalsso.repository.TenantRepository;
+import com.example.finalsso.repository.SSOProviderRepository;
 import com.example.finalsso.service.SSOConfigService;
 import com.example.finalsso.service.UserCompanyMapper;
 import com.example.finalsso.service.UserService;
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.http.ResponseEntity;
 
 import java.util.List;
 import java.util.Optional;
@@ -28,6 +31,7 @@ public class CompanyAdminController {
     
     private final UserRepository userRepository;
     private final TenantRepository tenantRepository;
+    private final SSOProviderRepository ssoProviderRepository;
     private final SSOConfigService ssoConfigService;
     private final UserService userService;
     private final UserCompanyMapper userCompanyMapper;
@@ -35,12 +39,14 @@ public class CompanyAdminController {
 
     public CompanyAdminController(UserRepository userRepository,
                                    TenantRepository tenantRepository,
+                                   SSOProviderRepository ssoProviderRepository,
                                    SSOConfigService ssoConfigService,
                                    UserService userService,
                                    UserCompanyMapper userCompanyMapper,
                                    PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.tenantRepository = tenantRepository;
+        this.ssoProviderRepository = ssoProviderRepository;
         this.ssoConfigService = ssoConfigService;
         this.userService = userService;
         this.userCompanyMapper = userCompanyMapper;
@@ -97,6 +103,10 @@ public class CompanyAdminController {
             // Get tenant-specific SSO config
             var ssoConfig = ssoConfigService.getByTenant(tenant);
             model.addAttribute("config", ssoConfig);
+            
+            // Get tenant-specific SSO providers
+            List<SSOProvider> ssoProviders = ssoProviderRepository.findByTenant(tenant);
+            model.addAttribute("ssoProviders", ssoProviders);
             
             return "company-admin/dashboard";
         } catch (Exception e) {
@@ -436,6 +446,283 @@ public class CompanyAdminController {
             ra.addFlashAttribute("error", "Error saving SSO configuration: " + (e.getCause() != null ? e.getCause().getMessage() : e.getMessage()));
         }
         return "redirect:/" + company + "/customer-admin/dashboard";
+    }
+    
+    // SSO Provider Management Endpoints
+    @GetMapping("/sso/providers")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    @ResponseBody
+    public List<SSOProvider> listProviders(@PathVariable String company) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String username = auth != null ? auth.getName() : null;
+        
+        if (username == null || !userCompanyMapper.validateCompanyContext(username, company)) {
+            return new java.util.ArrayList<>();
+        }
+        
+        Optional<User> currentUserOpt = userRepository.findByUsername(username);
+        if (currentUserOpt.isEmpty() || currentUserOpt.get().getTenant() == null) {
+            return new java.util.ArrayList<>();
+        }
+        
+        var tenant = currentUserOpt.get().getTenant();
+        tenant.getTenantId(); // Force initialization
+        return ssoProviderRepository.findByTenant(tenant);
+    }
+    
+    @GetMapping("/sso/providers/{id}")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    @ResponseBody
+    public ResponseEntity<SSOProvider> getProvider(@PathVariable String company, @PathVariable Long id) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String username = auth != null ? auth.getName() : null;
+        
+        if (username == null || !userCompanyMapper.validateCompanyContext(username, company)) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+        
+        Optional<User> currentUserOpt = userRepository.findByUsername(username);
+        if (currentUserOpt.isEmpty() || currentUserOpt.get().getTenant() == null) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+        
+        var tenant = currentUserOpt.get().getTenant();
+        tenant.getTenantId(); // Force initialization
+        
+        Optional<SSOProvider> providerOpt = ssoProviderRepository.findById(id);
+        if (providerOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        SSOProvider provider = providerOpt.get();
+        if (provider.getTenant() == null || !provider.getTenant().getTenantId().equals(tenant.getTenantId())) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+        
+        return ResponseEntity.ok(provider);
+    }
+    
+    @PostMapping("/sso/providers")
+    @org.springframework.transaction.annotation.Transactional
+    @ResponseBody
+    public ResponseEntity<?> createProvider(@PathVariable String company, @RequestBody SSOProvider provider) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String username = auth != null ? auth.getName() : null;
+        
+        if (username == null || !userCompanyMapper.validateCompanyContext(username, company)) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+        
+        Optional<User> currentUserOpt = userRepository.findByUsername(username);
+        if (currentUserOpt.isEmpty() || currentUserOpt.get().getTenant() == null) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+        
+        var tenant = currentUserOpt.get().getTenant();
+        tenant.getTenantId(); // Force initialization
+        
+        if (provider.getName() == null || provider.getName().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", "Provider name is required"));
+        }
+        
+        if (provider.getType() == null || provider.getType().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", "Provider type is required"));
+        }
+        
+        // Check for duplicate name within tenant
+        if (ssoProviderRepository.existsByNameIgnoreCaseAndTenant(provider.getName().trim(), tenant)) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.CONFLICT).body(java.util.Map.of("error", "Provider name already exists"));
+        }
+        
+        provider.setTenant(tenant);
+        provider.setActive(false);
+        
+        try {
+            SSOProvider saved = ssoProviderRepository.saveAndFlush(provider);
+            return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(saved);
+        } catch (Exception e) {
+            log.error("Error creating SSO provider: ", e);
+            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(java.util.Map.of("error", "Failed to create provider: " + (e.getCause() != null ? e.getCause().getMessage() : e.getMessage())));
+        }
+    }
+    
+    @PutMapping("/sso/providers/{id}")
+    @org.springframework.transaction.annotation.Transactional
+    @ResponseBody
+    public ResponseEntity<?> updateProvider(@PathVariable String company, @PathVariable Long id, @RequestBody SSOProvider incoming) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String username = auth != null ? auth.getName() : null;
+        
+        if (username == null || !userCompanyMapper.validateCompanyContext(username, company)) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+        
+        Optional<User> currentUserOpt = userRepository.findByUsername(username);
+        if (currentUserOpt.isEmpty() || currentUserOpt.get().getTenant() == null) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+        
+        var tenant = currentUserOpt.get().getTenant();
+        tenant.getTenantId(); // Force initialization
+        
+        Optional<SSOProvider> existingOpt = ssoProviderRepository.findById(id);
+        if (existingOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        SSOProvider existing = existingOpt.get();
+        if (existing.getTenant() == null || !existing.getTenant().getTenantId().equals(tenant.getTenantId())) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+        
+        String newName = incoming.getName() != null ? incoming.getName().trim() : null;
+        if (newName == null || newName.isEmpty()) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", "Provider name is required"));
+        }
+        
+        // Check for duplicate name within tenant (excluding current provider)
+        Optional<SSOProvider> clashOpt = ssoProviderRepository.findByNameIgnoreCaseAndTenant(newName, tenant);
+        if (clashOpt.isPresent() && !clashOpt.get().getId().equals(id)) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.CONFLICT).body(java.util.Map.of("error", "Provider name already exists"));
+        }
+        
+        // Update fields
+        existing.setName(newName);
+        existing.setType(incoming.getType());
+        existing.setOidcClientId(incoming.getOidcClientId());
+        existing.setOidcClientSecret(incoming.getOidcClientSecret());
+        existing.setOidcIssuerUri(incoming.getOidcIssuerUri());
+        existing.setOidcRedirectUri(incoming.getOidcRedirectUri());
+        existing.setOidcScopes(incoming.getOidcScopes());
+        existing.setOidcAuthorizationEndpoint(incoming.getOidcAuthorizationEndpoint());
+        existing.setOidcTokenEndpoint(incoming.getOidcTokenEndpoint());
+        existing.setOidcUserInfoEndpoint(incoming.getOidcUserInfoEndpoint());
+        existing.setOidcLogoutEndpoint(incoming.getOidcLogoutEndpoint());
+        existing.setSamlEntityId(incoming.getSamlEntityId());
+        existing.setSamlSsoUrl(incoming.getSamlSsoUrl());
+        existing.setSamlX509Cert(incoming.getSamlX509Cert());
+        existing.setSamlMetadataXml(incoming.getSamlMetadataXml());
+        existing.setSamlMetadataUrl(incoming.getSamlMetadataUrl());
+        existing.setJwtIssuer(incoming.getJwtIssuer());
+        existing.setJwtAudience(incoming.getJwtAudience());
+        existing.setJwtJwksUri(incoming.getJwtJwksUri());
+        existing.setJwtHeaderName(incoming.getJwtHeaderName());
+        existing.setJwtCertificate(incoming.getJwtCertificate());
+        existing.setJwtSsoUrl(incoming.getJwtSsoUrl());
+        existing.setJwtClientId(incoming.getJwtClientId());
+        existing.setJwtClientSecret(incoming.getJwtClientSecret());
+        existing.setJwtRedirectUri(incoming.getJwtRedirectUri());
+        
+        try {
+            SSOProvider saved = ssoProviderRepository.saveAndFlush(existing);
+            return ResponseEntity.ok(saved);
+        } catch (Exception e) {
+            log.error("Error updating SSO provider: ", e);
+            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(java.util.Map.of("error", "Failed to update provider: " + (e.getCause() != null ? e.getCause().getMessage() : e.getMessage())));
+        }
+    }
+    
+    @DeleteMapping("/sso/providers/{id}")
+    @org.springframework.transaction.annotation.Transactional
+    @ResponseBody
+    public ResponseEntity<?> deleteProvider(@PathVariable String company, @PathVariable Long id) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String username = auth != null ? auth.getName() : null;
+        
+        if (username == null || !userCompanyMapper.validateCompanyContext(username, company)) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+        
+        Optional<User> currentUserOpt = userRepository.findByUsername(username);
+        if (currentUserOpt.isEmpty() || currentUserOpt.get().getTenant() == null) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+        
+        var tenant = currentUserOpt.get().getTenant();
+        tenant.getTenantId(); // Force initialization
+        
+        Optional<SSOProvider> providerOpt = ssoProviderRepository.findById(id);
+        if (providerOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        SSOProvider provider = providerOpt.get();
+        if (provider.getTenant() == null || !provider.getTenant().getTenantId().equals(tenant.getTenantId())) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+        
+        ssoProviderRepository.deleteById(id);
+        return ResponseEntity.ok().build();
+    }
+    
+    @PostMapping("/sso/providers/{id}/activate")
+    @org.springframework.transaction.annotation.Transactional
+    @ResponseBody
+    public ResponseEntity<?> activateProvider(@PathVariable String company, @PathVariable Long id) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String username = auth != null ? auth.getName() : null;
+        
+        if (username == null || !userCompanyMapper.validateCompanyContext(username, company)) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+        
+        Optional<User> currentUserOpt = userRepository.findByUsername(username);
+        if (currentUserOpt.isEmpty() || currentUserOpt.get().getTenant() == null) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+        
+        var tenant = currentUserOpt.get().getTenant();
+        tenant.getTenantId(); // Force initialization
+        
+        Optional<SSOProvider> providerOpt = ssoProviderRepository.findById(id);
+        if (providerOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        SSOProvider provider = providerOpt.get();
+        if (provider.getTenant() == null || !provider.getTenant().getTenantId().equals(tenant.getTenantId())) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+        
+        provider.setActive(true);
+        ssoProviderRepository.save(provider);
+        return ResponseEntity.ok().build();
+    }
+    
+    @PostMapping("/sso/providers/{id}/deactivate")
+    @org.springframework.transaction.annotation.Transactional
+    @ResponseBody
+    public ResponseEntity<?> deactivateProvider(@PathVariable String company, @PathVariable Long id) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String username = auth != null ? auth.getName() : null;
+        
+        if (username == null || !userCompanyMapper.validateCompanyContext(username, company)) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+        
+        Optional<User> currentUserOpt = userRepository.findByUsername(username);
+        if (currentUserOpt.isEmpty() || currentUserOpt.get().getTenant() == null) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+        
+        var tenant = currentUserOpt.get().getTenant();
+        tenant.getTenantId(); // Force initialization
+        
+        Optional<SSOProvider> providerOpt = ssoProviderRepository.findById(id);
+        if (providerOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        SSOProvider provider = providerOpt.get();
+        if (provider.getTenant() == null || !provider.getTenant().getTenantId().equals(tenant.getTenantId())) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+        
+        provider.setActive(false);
+        ssoProviderRepository.save(provider);
+        return ResponseEntity.ok().build();
     }
 }
 

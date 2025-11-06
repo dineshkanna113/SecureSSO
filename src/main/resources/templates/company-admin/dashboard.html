@@ -168,266 +168,406 @@
             </div>
         </div>
         
-        <!-- SSO Configuration Form -->
-        <div class="nf-card" th:if="${config.ssoEnabled}">
-            <h3 style="margin: 0 0 20px 0; color: #fff;">SSO Provider Configuration</h3>
-            <form class="nf-form" th:action="@{'/' + ${company} + '/customer-admin/sso/config'}" method="post" id="ssoConfigForm">
+        <!-- SSO Providers Management -->
+        <div class="nf-section" th:if="${config.ssoEnabled}">
+            <div class="section-header">
+                <div>
+                    <h2>SSO Providers</h2>
+                    <p style="color: #aaa; margin: 8px 0 0 0; font-size: 14px;">Manage multiple SSO providers for your organization. You can add providers with different protocols (OIDC, SAML, JWT).</p>
+                </div>
+                <div class="nf-actions">
+                    <button class="nf-button" onclick="openAddProviderModal()">+ Add SSO Provider</button>
+                    <button class="nf-button nf-secondary" onclick="loadProviders()">Refresh</button>
+                </div>
+            </div>
+            
+            <table class="nf-table" id="providersTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:if="${ssoProviders == null or ssoProviders.isEmpty()}">
+                        <td colspan="5" style="text-align: center; color: #aaa; padding: 20px;">No SSO providers configured yet. Click "Add SSO Provider" to create one.</td>
+                    </tr>
+                    <tr th:each="provider : ${ssoProviders}">
+                        <td th:text="${provider.id}">1</td>
+                        <td th:text="${provider.name}">Provider Name</td>
+                        <td><span class="nf-badge" th:text="${provider.type}">OIDC</span></td>
+                        <td>
+                            <span th:if="${provider.active}" style="color: #2ecc71; font-weight: 600;">ACTIVE</span>
+                            <span th:unless="${provider.active}" style="color: #aaa;">INACTIVE</span>
+                        </td>
+                        <td>
+                            <button class="nf-button nf-success" th:if="${!provider.active}" 
+                                    th:onclick="'activateProvider(' + ${provider.id} + ')'" 
+                                    style="margin-right: 8px;">Activate</button>
+                            <button class="nf-button nf-secondary" th:if="${provider.active}" 
+                                    th:onclick="'deactivateProvider(' + ${provider.id} + ')'" 
+                                    style="margin-right: 8px;">Deactivate</button>
+                            <button class="nf-button nf-secondary" 
+                                    th:onclick="'editProvider(' + ${provider.id} + ')'" 
+                                    style="margin-right: 8px;">Edit</button>
+                            <button class="nf-button nf-danger" 
+                                    th:onclick="'deleteProvider(' + ${provider.id} + ')'" 
+                                    style="margin-right: 8px;">Delete</button>
+                            <button class="nf-button" 
+                                    th:onclick="'testProvider(' + ${provider.id} + ')'">Test</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit SSO Provider Modal -->
+<div id="addSsoModal" class="nf-modal" style="display: none;">
+    <div class="nf-modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto; padding: 0;">
+        <div class="nf-modal-header" style="padding: 24px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center;">
+            <h3 id="modalTitle" style="margin: 0; font-size: 24px; font-weight: 700;">Add SSO Provider</h3>
+            <button class="nf-button nf-secondary" onclick="closeAddProviderModal()" style="padding: 8px 16px; font-size: 20px; line-height: 1;">×</button>
+        </div>
+        <div class="nf-modal-body" style="padding: 24px;">
+            <form id="providerForm" onsubmit="saveProvider(event)">
+                <input type="hidden" id="saveProviderId" value="">
                 <label>Provider Name *</label>
-                <select name="providerName" id="providerName" required onchange="updateProtocolOptions()">
-                    <option value="">Select Provider</option>
-                    <option value="MiniOrange" th:selected="${config.providerName == 'MiniOrange'}">MiniOrange</option>
-                    <option value="Okta" th:selected="${config.providerName == 'Okta'}">Okta</option>
-                    <option value="Azure AD" th:selected="${config.providerName == 'Azure AD'}">Azure AD</option>
-                    <option value="Google" th:selected="${config.providerName == 'Google'}">Google</option>
-                    <option value="Auth0" th:selected="${config.providerName == 'Auth0'}">Auth0</option>
-                    <option value="Custom" th:selected="${config.providerName == 'Custom'}">Custom</option>
-                </select>
+                <input type="text" id="newProviderName" required placeholder="e.g., MiniOrange, Okta, Azure AD">
                 
-                <label>Protocol *</label>
-                <select name="activeProtocol" id="activeProtocol" required onchange="toggleProtocolFields()">
-                    <option value="">Select Protocol</option>
-                    <option value="OIDC" th:selected="${config.activeProtocol == 'OIDC'}">OIDC / OAuth2</option>
-                    <option value="SAML" th:selected="${config.activeProtocol == 'SAML'}">SAML</option>
-                    <option value="JWT" th:selected="${config.activeProtocol == 'JWT'}">JWT</option>
+                <label>Provider Type *</label>
+                <select id="newProviderType" required onchange="onProviderTypeChange(this.value)">
+                    <option value="">Select Type</option>
+                    <option value="OIDC">OIDC / OAuth2</option>
+                    <option value="SAML">SAML</option>
+                    <option value="JWT">JWT</option>
                 </select>
                 
                 <!-- OIDC Fields -->
-                <div id="oidcFields" style="display: none;">
+                <div id="newOidcFields" style="display: none;">
                     <h4 style="color: #fff; margin: 20px 0 10px 0; border-bottom: 1px solid #333; padding-bottom: 8px;">OIDC Configuration</h4>
                     <label>OIDC Client ID *</label>
-                    <input type="text" name="oidcClientId" th:value="${config.oidcClientId}" 
-                           placeholder="Enter OIDC Client ID" required>
-                    
+                    <input type="text" id="newOidcClientId" placeholder="Enter OIDC Client ID">
                     <label>OIDC Client Secret *</label>
-                    <input type="password" name="oidcClientSecret" th:value="${config.oidcClientSecret}" 
-                           placeholder="Enter OIDC Client Secret" required>
-                    
+                    <input type="password" id="newOidcClientSecret" placeholder="Enter OIDC Client Secret">
                     <label>OIDC Issuer URI *</label>
-                    <input type="text" name="oidcIssuerUri" th:value="${config.oidcIssuerUri}" 
-                           placeholder="Enter OIDC Issuer URI (e.g., https://login.microsoftonline.com/tenant-id/v2.0)" required>
-                    
+                    <input type="text" id="newOidcIssuerUri" placeholder="Enter OIDC Issuer URI">
                     <label>OIDC Redirect URI *</label>
-                    <input type="text" name="oidcRedirectUri" th:value="${config.oidcRedirectUri}" 
-                           placeholder="Enter OIDC Redirect URI (e.g., https://yourdomain.com/sso/oauth2/callback)" required>
-                    
+                    <input type="text" id="newOidcRedirectUri" placeholder="Enter OIDC Redirect URI">
                     <label>OIDC Scopes</label>
-                    <input type="text" name="oidcScopes" th:value="${config.oidcScopes}" 
-                           placeholder="Enter scopes (e.g., openid profile email)" 
-                           value="openid profile email">
-                    
+                    <input type="text" id="newOidcScopes" placeholder="openid profile email" value="openid profile email">
                     <label>Authorization Endpoint</label>
-                    <input type="text" name="oidcAuthorizationEndpoint" th:value="${config.oidcAuthorizationEndpoint}" 
-                           placeholder="Enter Authorization Endpoint">
-                    
+                    <input type="text" id="newOidcAuthz" placeholder="Enter Authorization Endpoint">
                     <label>Token Endpoint</label>
-                    <input type="text" name="oidcTokenEndpoint" th:value="${config.oidcTokenEndpoint}" 
-                           placeholder="Enter Token Endpoint">
-                    
+                    <input type="text" id="newOidcToken" placeholder="Enter Token Endpoint">
                     <label>User Info Endpoint</label>
-                    <input type="text" name="oidcUserInfoEndpoint" th:value="${config.oidcUserInfoEndpoint}" 
-                           placeholder="Enter User Info Endpoint">
+                    <input type="text" id="newOidcUserInfo" placeholder="Enter User Info Endpoint">
                 </div>
                 
                 <!-- SAML Fields -->
-                <div id="samlFields" style="display: none;">
+                <div id="newSamlFields" style="display: none;">
                     <h4 style="color: #fff; margin: 20px 0 10px 0; border-bottom: 1px solid #333; padding-bottom: 8px;">SAML Configuration</h4>
-                    
-                    <!-- Option 1: Import from Metadata URL -->
                     <div class="nf-card" style="margin-bottom: 16px; padding: 16px; background: rgba(255,255,255,0.02);">
                         <div style="font-weight: 600; margin-bottom: 8px; color: #fff;">Option 1 — Import from Metadata URL</div>
                         <label>Metadata URL</label>
-                        <input type="text" id="samlMetadataUrl" 
-                               placeholder="https://idp.example.com/metadata">
-                        <button type="button" class="nf-button nf-secondary" onclick="importSamlMetadataUrl()" style="margin-top: 8px;">Import from URL</button>
+                        <input type="text" id="newSamlMetadataUrl" placeholder="https://idp.example.com/metadata">
+                        <button type="button" class="nf-button nf-secondary" onclick="importSamlMetadataUrlModal()" style="margin-top: 8px;">Import from URL</button>
                     </div>
-                    
                     <div style="text-align: center; color: #777; margin: 12px 0;">— or —</div>
-                    
-                    <!-- Option 2: Upload Metadata XML -->
                     <div class="nf-card" style="margin-bottom: 16px; padding: 16px; background: rgba(255,255,255,0.02);">
                         <div style="font-weight: 600; margin-bottom: 8px; color: #fff;">Option 2 — Upload Metadata XML</div>
                         <label class="nf-button" style="display: inline-block; cursor: pointer; margin-top: 8px;">
                             Upload XML File
-                            <input type="file" accept=".xml" style="display: none" onchange="importSamlMetadataFile(this)">
+                            <input type="file" accept=".xml" style="display: none" onchange="importSamlMetadataFileModal(this)">
                         </label>
                     </div>
-                    
                     <div style="text-align: center; color: #777; margin: 12px 0;">— or —</div>
-                    
-                    <!-- Option 3: Enter Manually -->
                     <div>
                         <div style="font-weight: 600; margin-bottom: 8px; color: #fff;">Option 3 — Enter Manually</div>
                         <label>SAML Entity ID</label>
-                        <input type="text" name="samlEntityId" id="samlEntityId" th:value="${config.samlEntityId}" 
-                               placeholder="Enter SAML Entity ID (optional)">
-                        
+                        <input type="text" id="newSamlEntityId" placeholder="Enter SAML Entity ID">
                         <label>SAML SSO URL</label>
-                        <input type="text" name="samlSsoUrl" id="samlSsoUrl" th:value="${config.samlSsoUrl}" 
-                               placeholder="Enter SAML SSO URL (optional)">
-                        
+                        <input type="text" id="newSamlSsoUrl" placeholder="Enter SAML SSO URL">
                         <label>SAML X509 Certificate</label>
-                        <textarea name="samlX509Cert" id="samlX509Cert" rows="6" 
-                                  placeholder="Enter SAML X509 Certificate (PEM format, optional)">[[${config.samlX509Cert}]]</textarea>
-                        <small style="color: #aaa;">Paste the X.509 certificate in PEM format. Will be auto-filled when importing from metadata.</small>
-                        
-                        <label>SAML Metadata XML</label>
-                        <textarea name="samlMetadataXml" id="samlMetadataXml" rows="6" 
-                                  placeholder="Enter SAML Metadata XML (optional)">[[${config.samlMetadataXml}]]</textarea>
-                        <small style="color: #aaa;">Optional: Full SAML metadata XML</small>
+                        <textarea id="newSamlX509Cert" rows="6" placeholder="Enter SAML X509 Certificate (PEM format)"></textarea>
                     </div>
                 </div>
                 
                 <!-- JWT Fields -->
-                <div id="jwtFields" style="display: none;">
+                <div id="newJwtFields" style="display: none;">
                     <h4 style="color: #fff; margin: 20px 0 10px 0; border-bottom: 1px solid #333; padding-bottom: 8px;">JWT Configuration</h4>
-                    
-                    <!-- For MiniOrange and similar providers -->
-                    <div id="jwtSsoFlowFields" style="display: none;">
-                        <label>JWT SSO URL *</label>
-                        <input type="text" name="jwtSsoUrl" th:value="${config.jwtSsoUrl}" 
-                               placeholder="Enter JWT SSO URL (e.g., https://kanna.xecurify.com/moas/idp/jwtsso/379412)" required>
-                        
-                        <label>JWT Client ID *</label>
-                        <input type="text" name="jwtClientId" th:value="${config.jwtClientId}" 
-                               placeholder="Enter JWT Client ID" required>
-                        
-                        <label>JWT Client Secret *</label>
-                        <input type="password" name="jwtClientSecret" th:value="${config.jwtClientSecret}" 
-                               placeholder="Enter JWT Client Secret" required>
-                        
-                        <label>JWT Redirect URI *</label>
-                        <input type="text" name="jwtRedirectUri" th:value="${config.jwtRedirectUri}" 
-                               placeholder="Enter JWT Redirect URI" required>
-                    </div>
-                    
-                    <!-- Standard JWT validation fields -->
+                    <label>JWT SSO URL *</label>
+                    <input type="text" id="newJwtSsoUrl" placeholder="Enter JWT SSO URL">
+                    <label>JWT Client ID *</label>
+                    <input type="text" id="newJwtClientId" placeholder="Enter JWT Client ID">
+                    <label>JWT Client Secret *</label>
+                    <input type="password" id="newJwtClientSecret" placeholder="Enter JWT Client Secret">
+                    <label>JWT Redirect URI *</label>
+                    <input type="text" id="newJwtRedirectUri" placeholder="Enter JWT Redirect URI">
                     <label>JWT Issuer</label>
-                    <input type="text" name="jwtIssuer" th:value="${config.jwtIssuer}" 
-                           placeholder="Enter JWT Issuer">
-                    
+                    <input type="text" id="newJwtIssuer" placeholder="Enter JWT Issuer">
                     <label>JWT Audience</label>
-                    <input type="text" name="jwtAudience" th:value="${config.jwtAudience}" 
-                           placeholder="Enter JWT Audience">
-                    
+                    <input type="text" id="newJwtAudience" placeholder="Enter JWT Audience">
                     <label>JWKS URI</label>
-                    <input type="text" name="jwtJwksUri" th:value="${config.jwtJwksUri}" 
-                           placeholder="Enter JWKS URI">
-                    
-                    <label>JWT Header Name</label>
-                    <input type="text" name="jwtHeaderName" th:value="${config.jwtHeaderName}" 
-                           placeholder="Enter JWT Header Name (e.g., Authorization)">
-                    
-                    <label>JWT Certificate</label>
-                    <textarea name="jwtCertificate" rows="4" 
-                              placeholder="Enter JWT Certificate (PEM format)">[[${config.jwtCertificate}]]</textarea>
-                    <small style="color: #aaa;">PEM-encoded public key/cert for signature validation</small>
+                    <input type="text" id="newJwtJwksUri" placeholder="Enter JWKS URI">
                 </div>
                 
-                <div class="nf-actions" style="margin-top: 24px;">
-                    <button type="submit" class="nf-button">Save SSO Configuration</button>
+                <div class="nf-actions" style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #333; display: flex; justify-content: flex-end; gap: 12px;">
+                    <button type="button" class="nf-button nf-secondary" onclick="closeAddProviderModal()">Cancel</button>
+                    <button type="submit" class="nf-button">Save Provider</button>
                 </div>
             </form>
-            
-            <script>
-                function toggleProtocolFields() {
-                    var protocol = document.getElementById('activeProtocol').value;
-                    var oidcFields = document.getElementById('oidcFields');
-                    var samlFields = document.getElementById('samlFields');
-                    var jwtFields = document.getElementById('jwtFields');
-                    
-                    // Hide all fields first
-                    oidcFields.style.display = 'none';
-                    samlFields.style.display = 'none';
-                    jwtFields.style.display = 'none';
-                    
-                    // Show relevant fields based on protocol
-                    if (protocol === 'OIDC') {
-                        oidcFields.style.display = 'block';
-                    } else if (protocol === 'SAML') {
-                        samlFields.style.display = 'block';
-                    } else if (protocol === 'JWT') {
-                        jwtFields.style.display = 'block';
-                        // For JWT, show SSO flow fields for MiniOrange
-                        var provider = document.getElementById('providerName').value;
-                        document.getElementById('jwtSsoFlowFields').style.display = 
-                            (provider === 'MiniOrange' || provider === 'Custom') ? 'block' : 'none';
-                    }
-                }
-                
-                function updateProtocolOptions() {
-                    var provider = document.getElementById('providerName').value;
-                    // Auto-select protocol based on provider
-                    if (provider === 'MiniOrange') {
-                        document.getElementById('activeProtocol').value = 'JWT';
-                    } else if (provider === 'Okta' || provider === 'Azure AD' || provider === 'Google' || provider === 'Auth0') {
-                        document.getElementById('activeProtocol').value = 'OIDC';
-                    }
-                    toggleProtocolFields();
-                }
-                
-                // SAML Metadata Import Functions
-                async function importSamlMetadataUrl() {
-                    const url = document.getElementById('samlMetadataUrl').value.trim();
-                    if (!url) {
-                        alert('Please enter a metadata URL');
-                        return;
-                    }
-                    try {
-                        const res = await fetch(`/api/sso/providers/metadata/fetch?url=${encodeURIComponent(url)}`);
-                        if (res.ok) {
-                            const data = await res.json();
-                            document.getElementById('samlEntityId').value = data.samlEntityId || '';
-                            document.getElementById('samlSsoUrl').value = data.samlSsoUrl || '';
-                            document.getElementById('samlX509Cert').value = data.samlX509Cert || '';
-                            if (data.samlMetadataXml) {
-                                document.getElementById('samlMetadataXml').value = data.samlMetadataXml;
-                            }
-                            alert('SAML metadata imported successfully!');
-                        } else {
-                            alert('Failed to import SAML metadata. Please check the URL.');
-                        }
-                    } catch (e) {
-                        alert('Error importing SAML metadata: ' + e.message);
-                    }
-                }
-                
-                async function importSamlMetadataFile(input) {
-                    if (!input.files || !input.files[0]) return;
-                    const formData = new FormData();
-                    formData.append('file', input.files[0]);
-                    try {
-                        const res = await fetch('/api/sso/providers/metadata/upload', {
-                            method: 'POST',
-                            body: formData
-                        });
-                        if (res.ok) {
-                            const data = await res.json();
-                            document.getElementById('samlEntityId').value = data.samlEntityId || '';
-                            document.getElementById('samlSsoUrl').value = data.samlSsoUrl || '';
-                            document.getElementById('samlX509Cert').value = data.samlX509Cert || '';
-                            if (data.samlMetadataXml) {
-                                document.getElementById('samlMetadataXml').value = data.samlMetadataXml;
-                            }
-                            alert('SAML metadata imported successfully!');
-                        } else {
-                            alert('Failed to import SAML metadata.');
-                        }
-                    } catch (e) {
-                        alert('Error importing SAML metadata: ' + e.message);
-                    }
-                }
-                
-                // Initialize on page load
-                document.addEventListener('DOMContentLoaded', function() {
-                    // If config already exists, show appropriate fields
-                    var protocol = document.getElementById('activeProtocol').value;
-                    if (protocol) {
-                        toggleProtocolFields();
-                    }
-                });
-            </script>
         </div>
     </div>
 </div>
+
+<script>
+    const companyName = '[[${company}]]';
+    
+    function openAddProviderModal() {
+        document.getElementById('addSsoModal').style.display = 'flex';
+        document.getElementById('modalTitle').textContent = 'Add SSO Provider';
+        document.getElementById('saveProviderId').value = '';
+        document.getElementById('providerForm').reset();
+        document.getElementById('newOidcFields').style.display = 'none';
+        document.getElementById('newSamlFields').style.display = 'none';
+        document.getElementById('newJwtFields').style.display = 'none';
+    }
+    
+    function closeAddProviderModal() {
+        document.getElementById('addSsoModal').style.display = 'none';
+    }
+    
+    function onProviderTypeChange(type) {
+        document.getElementById('newOidcFields').style.display = type === 'OIDC' ? 'block' : 'none';
+        document.getElementById('newSamlFields').style.display = type === 'SAML' ? 'block' : 'none';
+        document.getElementById('newJwtFields').style.display = type === 'JWT' ? 'block' : 'none';
+    }
+    
+    async function loadProviders() {
+        const tbody = document.querySelector('#providersTable tbody');
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">Loading...</td></tr>';
+        try {
+            const res = await fetch(`/${companyName}/customer-admin/sso/providers`);
+            if (!res.ok) throw new Error('Failed to load providers');
+            const list = await res.json();
+            tbody.innerHTML = '';
+            if (!Array.isArray(list) || list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #aaa; padding: 20px;">No SSO providers configured yet.</td></tr>';
+                return;
+            }
+            list.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${p.id}</td>
+                    <td>${p.name || ''}</td>
+                    <td><span class="nf-badge">${p.type || ''}</span></td>
+                    <td>
+                        ${p.active ? '<span style="color: #2ecc71; font-weight: 600;">ACTIVE</span>' : '<span style="color: #aaa;">INACTIVE</span>'}
+                    </td>
+                    <td>
+                        ${!p.active ? `<button class="nf-button nf-success" onclick="activateProvider(${p.id})" style="margin-right: 8px;">Activate</button>` : ''}
+                        ${p.active ? `<button class="nf-button nf-secondary" onclick="deactivateProvider(${p.id})" style="margin-right: 8px;">Deactivate</button>` : ''}
+                        <button class="nf-button nf-secondary" onclick="editProvider(${p.id})" style="margin-right: 8px;">Edit</button>
+                        <button class="nf-button nf-danger" onclick="deleteProvider(${p.id})" style="margin-right: 8px;">Delete</button>
+                        <button class="nf-button" onclick="testProvider(${p.id})">Test</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } catch (e) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #b81d24; padding: 20px;">Error: ${e.message}</td></tr>`;
+        }
+    }
+    
+    async function saveProvider(event) {
+        event.preventDefault();
+        const id = document.getElementById('saveProviderId').value;
+        const type = document.getElementById('newProviderType').value;
+        const name = document.getElementById('newProviderName').value.trim();
+        
+        if (!type || !name) {
+            alert('Provider name and type are required');
+            return;
+        }
+        
+        const body = { name, type };
+        
+        // Add protocol-specific fields
+        if (type === 'OIDC') {
+            body.oidcClientId = document.getElementById('newOidcClientId').value || '';
+            body.oidcClientSecret = document.getElementById('newOidcClientSecret').value || '';
+            body.oidcIssuerUri = document.getElementById('newOidcIssuerUri').value || '';
+            body.oidcRedirectUri = document.getElementById('newOidcRedirectUri').value || '';
+            body.oidcScopes = document.getElementById('newOidcScopes').value || 'openid profile email';
+            body.oidcAuthorizationEndpoint = document.getElementById('newOidcAuthz').value || '';
+            body.oidcTokenEndpoint = document.getElementById('newOidcToken').value || '';
+            body.oidcUserInfoEndpoint = document.getElementById('newOidcUserInfo').value || '';
+        } else if (type === 'SAML') {
+            body.samlEntityId = document.getElementById('newSamlEntityId').value || '';
+            body.samlSsoUrl = document.getElementById('newSamlSsoUrl').value || '';
+            body.samlX509Cert = document.getElementById('newSamlX509Cert').value || '';
+            body.samlMetadataXml = ''; // Can be added later if needed
+            body.samlMetadataUrl = document.getElementById('newSamlMetadataUrl').value || '';
+        } else if (type === 'JWT') {
+            body.jwtSsoUrl = document.getElementById('newJwtSsoUrl').value || '';
+            body.jwtClientId = document.getElementById('newJwtClientId').value || '';
+            body.jwtClientSecret = document.getElementById('newJwtClientSecret').value || '';
+            body.jwtRedirectUri = document.getElementById('newJwtRedirectUri').value || '';
+            body.jwtIssuer = document.getElementById('newJwtIssuer').value || '';
+            body.jwtAudience = document.getElementById('newJwtAudience').value || '';
+            body.jwtJwksUri = document.getElementById('newJwtJwksUri').value || '';
+        }
+        
+        const url = id ? `/${companyName}/customer-admin/sso/providers/${id}` : `/${companyName}/customer-admin/sso/providers`;
+        const method = id ? 'PUT' : 'POST';
+        
+        try {
+            const res = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            
+            if (res.ok) {
+                const result = await res.json();
+                alert('Provider saved successfully');
+                closeAddProviderModal();
+                loadProviders();
+            } else {
+                const errorData = await res.json().catch(() => ({ error: 'Failed to save provider' }));
+                alert(errorData.error || `Failed to save provider (Status: ${res.status})`);
+            }
+        } catch (e) {
+            alert('Error saving provider: ' + e.message);
+            console.error('Provider save error:', e);
+        }
+    }
+    
+    async function activateProvider(id) {
+        const res = await fetch(`/${companyName}/customer-admin/sso/providers/${id}/activate`, { method: 'POST' });
+        if (res.ok) {
+            loadProviders();
+        } else {
+            alert('Failed to activate provider');
+        }
+    }
+    
+    async function deactivateProvider(id) {
+        const res = await fetch(`/${companyName}/customer-admin/sso/providers/${id}/deactivate`, { method: 'POST' });
+        if (res.ok) {
+            loadProviders();
+        } else {
+            alert('Failed to deactivate provider');
+        }
+    }
+    
+    async function editProvider(id) {
+        const res = await fetch(`/${companyName}/customer-admin/sso/providers/${id}`);
+        if (!res.ok) {
+            alert('Failed to load provider');
+            return;
+        }
+        const p = await res.json();
+        
+        document.getElementById('addSsoModal').style.display = 'flex';
+        document.getElementById('modalTitle').textContent = 'Edit SSO Provider';
+        document.getElementById('saveProviderId').value = p.id;
+        document.getElementById('newProviderName').value = p.name || '';
+        document.getElementById('newProviderType').value = p.type || 'OIDC';
+        onProviderTypeChange(p.type || 'OIDC');
+        
+        if (p.type === 'OIDC') {
+            document.getElementById('newOidcClientId').value = p.oidcClientId || '';
+            document.getElementById('newOidcClientSecret').value = p.oidcClientSecret || '';
+            document.getElementById('newOidcIssuerUri').value = p.oidcIssuerUri || '';
+            document.getElementById('newOidcRedirectUri').value = p.oidcRedirectUri || '';
+            document.getElementById('newOidcScopes').value = p.oidcScopes || '';
+            document.getElementById('newOidcAuthz').value = p.oidcAuthorizationEndpoint || '';
+            document.getElementById('newOidcToken').value = p.oidcTokenEndpoint || '';
+            document.getElementById('newOidcUserInfo').value = p.oidcUserInfoEndpoint || '';
+        } else if (p.type === 'SAML') {
+            document.getElementById('newSamlEntityId').value = p.samlEntityId || '';
+            document.getElementById('newSamlSsoUrl').value = p.samlSsoUrl || '';
+            document.getElementById('newSamlX509Cert').value = p.samlX509Cert || '';
+        } else if (p.type === 'JWT') {
+            document.getElementById('newJwtSsoUrl').value = p.jwtSsoUrl || '';
+            document.getElementById('newJwtClientId').value = p.jwtClientId || '';
+            document.getElementById('newJwtClientSecret').value = p.jwtClientSecret || '';
+            document.getElementById('newJwtRedirectUri').value = p.jwtRedirectUri || '';
+            document.getElementById('newJwtIssuer').value = p.jwtIssuer || '';
+            document.getElementById('newJwtAudience').value = p.jwtAudience || '';
+            document.getElementById('newJwtJwksUri').value = p.jwtJwksUri || '';
+        }
+    }
+    
+    async function deleteProvider(id) {
+        if (!confirm('Delete this provider?')) return;
+        const res = await fetch(`/${companyName}/customer-admin/sso/providers/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+            loadProviders();
+        } else {
+            alert('Failed to delete provider');
+        }
+    }
+    
+    async function testProvider(id) {
+        window.location.href = `/${companyName}/customer-admin/sso/providers/${id}/test`;
+    }
+    
+    async function importSamlMetadataUrlModal() {
+        const url = document.getElementById('newSamlMetadataUrl').value.trim();
+        if (!url) {
+            alert('Please enter a metadata URL');
+            return;
+        }
+        try {
+            const res = await fetch(`/api/sso/providers/metadata/fetch?url=${encodeURIComponent(url)}`);
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById('newSamlEntityId').value = data.samlEntityId || '';
+                document.getElementById('newSamlSsoUrl').value = data.samlSsoUrl || '';
+                document.getElementById('newSamlX509Cert').value = data.samlX509Cert || '';
+                alert('SAML metadata imported successfully!');
+            } else {
+                alert('Failed to import SAML metadata');
+            }
+        } catch (e) {
+            alert('Error importing SAML metadata: ' + e.message);
+        }
+    }
+    
+    async function importSamlMetadataFileModal(input) {
+        if (!input.files || !input.files[0]) return;
+        const formData = new FormData();
+        formData.append('file', input.files[0]);
+        try {
+            const res = await fetch('/api/sso/providers/metadata/upload', {
+                method: 'POST',
+                body: formData
+            });
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById('newSamlEntityId').value = data.samlEntityId || '';
+                document.getElementById('newSamlSsoUrl').value = data.samlSsoUrl || '';
+                document.getElementById('newSamlX509Cert').value = data.samlX509Cert || '';
+                alert('SAML metadata imported successfully!');
+            } else {
+                alert('Failed to import SAML metadata');
+            }
+        } catch (e) {
+            alert('Error importing SAML metadata: ' + e.message);
+        }
+    }
+    
+    // Load providers on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        loadProviders();
+    });
+</script>
 </body>
 </html>
