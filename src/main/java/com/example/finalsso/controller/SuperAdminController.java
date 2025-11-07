@@ -2,6 +2,8 @@ package com.example.finalsso.controller;
 
 import com.example.finalsso.entity.Tenant;
 import com.example.finalsso.entity.User;
+import com.example.finalsso.repository.SSOConfigRepository;
+import com.example.finalsso.repository.SSOProviderRepository;
 import com.example.finalsso.repository.TenantRepository;
 import com.example.finalsso.repository.UserRepository;
 import com.example.finalsso.service.UserService;
@@ -26,15 +28,21 @@ public class SuperAdminController {
     private final TenantRepository tenantRepository;
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
+    private final SSOConfigRepository ssoConfigRepository;
+    private final SSOProviderRepository ssoProviderRepository;
 
     public SuperAdminController(UserRepository userRepository, 
                                 TenantRepository tenantRepository,
                                 UserService userService,
-                                PasswordEncoder passwordEncoder) {
+                                PasswordEncoder passwordEncoder,
+                                SSOConfigRepository ssoConfigRepository,
+                                SSOProviderRepository ssoProviderRepository) {
         this.userRepository = userRepository;
         this.tenantRepository = tenantRepository;
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
+        this.ssoConfigRepository = ssoConfigRepository;
+        this.ssoProviderRepository = ssoProviderRepository;
     }
 
     @GetMapping("/dashboard")
@@ -267,7 +275,17 @@ public class SuperAdminController {
                 ra.addFlashAttribute("error", "Cannot delete tenant with assigned users. Please remove users first.");
                 return "redirect:/super-admin/dashboard";
             }
-            tenantRepository.deleteById(id);
+            Tenant tenant = tenantOpt.get();
+            // Remove tenant-specific SSO providers and config if present
+            try {
+                ssoProviderRepository.deleteByTenant(tenant);
+                ssoConfigRepository.findByTenant(tenant).ifPresent(ssoConfigRepository::delete);
+            } catch (Exception e) {
+                log.error("Error cleaning up SSO resources for tenant {}", tenant.getTenantName(), e);
+                ra.addFlashAttribute("error", "Failed to clean up SSO configuration for tenant.");
+                return "redirect:/super-admin/dashboard";
+            }
+            tenantRepository.delete(tenant);
             ra.addFlashAttribute("success", "Tenant deleted successfully");
         }
         return "redirect:/super-admin/dashboard";

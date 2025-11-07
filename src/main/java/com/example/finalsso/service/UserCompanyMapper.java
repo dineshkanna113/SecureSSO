@@ -1,6 +1,5 @@
 package com.example.finalsso.service;
 
-import com.example.finalsso.entity.Tenant;
 import com.example.finalsso.entity.User;
 import com.example.finalsso.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -28,17 +27,19 @@ public class UserCompanyMapper {
         return userRepository.findByUsername(username)
             .map(user -> {
                 // Initialize tenant to avoid lazy loading issues
-                String companyName = null;
+                String companySlug = null;
+                String companyDisplayName = null;
                 Long tenantId = null;
                 if (user.getTenant() != null) {
-                    // Force initialization
                     tenantId = user.getTenant().getTenantId();
-                    companyName = user.getTenant().getTenantName();
+                    companyDisplayName = user.getTenant().getTenantName();
+                    companySlug = slugify(companyDisplayName);
                 }
                 return new UserInfo(
                     user.getUsername(),
                     user.getUserRole(),
-                    companyName,
+                    companySlug,
+                    companyDisplayName,
                     tenantId
                 );
             });
@@ -52,11 +53,11 @@ public class UserCompanyMapper {
             .map(info -> {
                 if (info.role == User.UserRole.SUPER_ADMIN) {
                     return "/super-admin/dashboard";
-                } else if (info.companyName != null) {
+                } else if (info.companySlug != null) {
                     if (info.role == User.UserRole.CUSTOMER_ADMIN) {
-                        return "/" + info.companyName + "/customer-admin/dashboard";
+                        return "/" + info.companySlug + "/customer-admin/dashboard";
                     } else if (info.role == User.UserRole.END_USER) {
-                        return "/" + info.companyName + "/enduser/dashboard";
+                        return "/" + info.companySlug + "/enduser/dashboard";
                     }
                 }
                 return "/login?error=invalid_user";
@@ -72,8 +73,8 @@ public class UserCompanyMapper {
             .map(info -> {
                 if (info.role == User.UserRole.SUPER_ADMIN) {
                     return "/super-admin/password";
-                } else if (info.companyName != null) {
-                    return "/" + info.companyName + "/password";
+                } else if (info.companySlug != null) {
+                    return "/" + info.companySlug + "/password";
                 }
                 return "/login?error=invalid_user";
             })
@@ -90,7 +91,11 @@ public class UserCompanyMapper {
                 if (info.role == User.UserRole.SUPER_ADMIN) {
                     return true; // Super admin can access any company context
                 }
-                return info.companyName != null && info.companyName.equalsIgnoreCase(companyName);
+                if (info.companySlug == null) {
+                    return false;
+                }
+                String requestedSlug = slugify(companyName);
+                return info.companySlug.equalsIgnoreCase(requestedSlug);
             })
             .orElse(false);
     }
@@ -99,7 +104,22 @@ public class UserCompanyMapper {
      * Get company name for user
      */
     public Optional<String> getCompanyName(String username) {
-        return getUserInfo(username).map(info -> info.companyName);
+        return getUserInfo(username).map(info -> info.companySlug);
+    }
+
+    public Optional<String> getCompanyDisplayName(String username) {
+        return getUserInfo(username).map(info -> info.companyDisplayName != null ? info.companyDisplayName : info.companySlug);
+    }
+
+    private String slugify(String input) {
+        if (input == null) {
+            return null;
+        }
+        String slug = input.trim().toLowerCase()
+            .replaceAll("[^a-z0-9]+", "-")
+            .replaceAll("^-+", "")
+            .replaceAll("-+$", "");
+        return slug.isEmpty() ? input.trim().toLowerCase().replace(' ', '-') : slug;
     }
     
     /**
@@ -108,13 +128,15 @@ public class UserCompanyMapper {
     public static class UserInfo {
         public final String username;
         public final User.UserRole role;
-        public final String companyName;
+        public final String companySlug;
+        public final String companyDisplayName;
         public final Long tenantId;
         
-        public UserInfo(String username, User.UserRole role, String companyName, Long tenantId) {
+        public UserInfo(String username, User.UserRole role, String companySlug, String companyDisplayName, Long tenantId) {
             this.username = username;
             this.role = role;
-            this.companyName = companyName;
+            this.companySlug = companySlug;
+            this.companyDisplayName = companyDisplayName;
             this.tenantId = tenantId;
         }
     }

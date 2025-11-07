@@ -9,7 +9,9 @@ import java.util.Optional;
 @Repository
 public interface TenantRepository extends JpaRepository<Tenant, Long> {
     Optional<Tenant> findByTenantName(String tenantName);
+    Optional<Tenant> findByTenantNameIgnoreCase(String tenantName);
     boolean existsByTenantName(String tenantName);
 }
+
 
 

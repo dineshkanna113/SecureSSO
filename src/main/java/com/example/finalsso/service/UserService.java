@@ -46,11 +46,12 @@ public class UserService {
         // Registration is only for END_USER role
         user.setUserRole(User.UserRole.END_USER);
         
-        // Map user to tenant based on company name
-        if (companyName != null && !companyName.trim().isEmpty()) {
-            Tenant tenant = findOrCreateTenant(companyName.trim());
-            user.setTenant(tenant);
+        if (companyName == null || companyName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Company name is required to register.");
         }
+        Tenant tenant = findExistingTenant(companyName.trim())
+            .orElseThrow(() -> new IllegalArgumentException("Company not found. Please contact your administrator."));
+        user.setTenant(tenant);
         
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         return userRepository.save(user);
@@ -60,21 +61,24 @@ public class UserService {
      * Find existing tenant by name, or create new one if doesn't exist
      * During registration, there's no authenticated user, so use "system" as createdBy
      */
-    private Tenant findOrCreateTenant(String companyName) {
-        return tenantRepository.findByTenantName(companyName)
-            .orElseGet(() -> {
-                Tenant newTenant = new Tenant();
-                newTenant.setTenantName(companyName);
-                // Get current user (Super Admin) who is creating the tenant, or "system" for registration
-                Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-                String createdBy = "system";
-                if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
-                    createdBy = auth.getName();
-                }
-                newTenant.setCreatedBy(createdBy);
-                newTenant.setActive(true);
-                return tenantRepository.save(newTenant);
-            });
+    private java.util.Optional<Tenant> findExistingTenant(String companyKey) {
+        // Try direct match first (case-insensitive)
+        java.util.Optional<Tenant> direct = tenantRepository.findByTenantNameIgnoreCase(companyKey);
+        if (direct.isPresent()) {
+            return direct;
+        }
+        String targetSlug = slugify(companyKey);
+        return tenantRepository.findAll().stream()
+            .filter(t -> slugify(t.getTenantName()).equals(targetSlug))
+            .findFirst();
+    }
+
+    private String slugify(String input) {
+        String value = input == null ? "" : input.trim().toLowerCase();
+        value = value.replaceAll("[^a-z0-9]+", "-");
+        value = value.replaceAll("^-+", "");
+        value = value.replaceAll("-+$", "");
+        return value;
     }
 
     /**

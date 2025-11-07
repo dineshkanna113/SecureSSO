@@ -9,6 +9,7 @@ import java.util.Optional;
 public interface SSOConfigRepository extends JpaRepository<SSOConfig, Long> {
     Optional<SSOConfig> findByTenant(Tenant tenant);
     Optional<SSOConfig> findByTenantIsNull(); // Global config (super admin)
+    void deleteByTenant(Tenant tenant);
 }
 
 
