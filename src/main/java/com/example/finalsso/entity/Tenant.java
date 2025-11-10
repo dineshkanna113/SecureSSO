@@ -1,12 +1,15 @@
 package com.example.finalsso.entity;
 
 import javax.persistence.*;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 import java.time.LocalDateTime;
 
 @Entity
 @Data
 @Table(name = "tenant_master")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Tenant {
 
     @Id
@@ -33,5 +36,6 @@ public class Tenant {
         updatedAt = LocalDateTime.now();
     }
 }
+
 
 

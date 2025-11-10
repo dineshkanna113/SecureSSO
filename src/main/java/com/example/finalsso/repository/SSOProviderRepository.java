@@ -12,6 +12,7 @@ public interface SSOProviderRepository extends JpaRepository<SSOProvider, Long> 
     Optional<SSOProvider> findByNameIgnoreCaseAndTenant(String name, Tenant tenant);
     List<SSOProvider> findByTenant(Tenant tenant);
     List<SSOProvider> findByTenantIsNull(); // Global providers (super admin)
+    void deleteByTenant(Tenant tenant);
 }
 
 

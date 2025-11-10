@@ -17,6 +17,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 
 import java.util.List;
@@ -524,10 +525,13 @@ public class CompanyAdminController {
         if (provider.getName() == null || provider.getName().trim().isEmpty()) {
             return ResponseEntity.badRequest().body(java.util.Map.of("error", "Provider name is required"));
         }
-        
-        if (provider.getType() == null || provider.getType().trim().isEmpty()) {
+        provider.setName(provider.getName().trim());
+
+        String normalizedType = normalizeProviderType(provider.getType());
+        if (normalizedType == null) {
             return ResponseEntity.badRequest().body(java.util.Map.of("error", "Provider type is required"));
         }
+        provider.setType(normalizedType);
         
         // Check for duplicate name within tenant
         if (ssoProviderRepository.existsByNameIgnoreCaseAndTenant(provider.getName().trim(), tenant)) {
@@ -536,10 +540,14 @@ public class CompanyAdminController {
         
         provider.setTenant(tenant);
         provider.setActive(false);
-        
+        provider.setType(normalizedType);
         try {
             SSOProvider saved = ssoProviderRepository.saveAndFlush(provider);
             return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(saved);
+        } catch (DataIntegrityViolationException dive) {
+            log.error("Constraint violation while creating SSO provider", dive);
+            return ResponseEntity.status(org.springframework.http.HttpStatus.BAD_REQUEST)
+                .body(java.util.Map.of("error", "Unable to save provider data. Ensure large metadata/certificates fit your database configuration."));
         } catch (Exception e) {
             log.error("Error creating SSO provider: ", e);
             return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
@@ -589,7 +597,11 @@ public class CompanyAdminController {
         
         // Update fields
         existing.setName(newName);
-        existing.setType(incoming.getType());
+        String normalizedType = normalizeProviderType(incoming.getType());
+        if (normalizedType == null) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", "Provider type is required"));
+        }
+        existing.setType(normalizedType);
         existing.setOidcClientId(incoming.getOidcClientId());
         existing.setOidcClientSecret(incoming.getOidcClientSecret());
         existing.setOidcIssuerUri(incoming.getOidcIssuerUri());
@@ -617,6 +629,10 @@ public class CompanyAdminController {
         try {
             SSOProvider saved = ssoProviderRepository.saveAndFlush(existing);
             return ResponseEntity.ok(saved);
+        } catch (DataIntegrityViolationException dive) {
+            log.error("Constraint violation while updating SSO provider", dive);
+            return ResponseEntity.status(org.springframework.http.HttpStatus.BAD_REQUEST)
+                .body(java.util.Map.of("error", "Unable to save provider data. Ensure large metadata/certificates fit your database configuration."));
         } catch (Exception e) {
             log.error("Error updating SSO provider: ", e);
             return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
@@ -723,6 +739,23 @@ public class CompanyAdminController {
         provider.setActive(false);
         ssoProviderRepository.save(provider);
         return ResponseEntity.ok().build();
+    }
+
+    private String normalizeProviderType(String rawType) {
+        if (rawType == null) {
+            return null;
+        }
+        String value = rawType.trim().toUpperCase();
+        if (value.startsWith("OIDC")) {
+            return "OIDC";
+        }
+        if (value.startsWith("SAML")) {
+            return "SAML";
+        }
+        if (value.startsWith("JWT")) {
+            return "JWT";
+        }
+        return null;
     }
 }
 

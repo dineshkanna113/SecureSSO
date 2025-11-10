@@ -35,18 +35,21 @@ public class SSOConfig {
 	// SAML fields
 	private String samlEntityId;
 	private String samlSsoUrl;
-	@Column(length = 8192)
-	private String samlX509Cert;
-	@Column(length = 16384)
-	private String samlMetadataXml;
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String samlX509Cert;
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String samlMetadataXml;
 	
 	// JWT fields
 	private String jwtIssuer;
 	private String jwtAudience;
 	private String jwtJwksUri;
 	private String jwtHeaderName;
-	@Column(length = 8192)
-	private String jwtCertificate; // PEM-encoded public key/cert for signature validation
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String jwtCertificate; // PEM-encoded public key/cert for signature validation
 	// JWT SSO flow fields (for miniOrange and similar)
 	private String jwtSsoUrl; // e.g., https://kanna.xecurify.com/moas/idp/jwtsso/379412
 	private String jwtClientId;

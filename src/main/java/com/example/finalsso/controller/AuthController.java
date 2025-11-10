@@ -6,15 +6,10 @@ import com.example.finalsso.service.SSOConfigService;
 import com.example.finalsso.service.UserCompanyMapper;
 import com.example.finalsso.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 @Controller
@@ -146,7 +141,7 @@ public class AuthController {
         }
         
         model.addAttribute("username", username);
-        model.addAttribute("companyName", userInfo.get().companyName);
+        model.addAttribute("companyName", userInfo.get().companyDisplayName != null ? userInfo.get().companyDisplayName : userInfo.get().companySlug);
         return "password";
     }
 
