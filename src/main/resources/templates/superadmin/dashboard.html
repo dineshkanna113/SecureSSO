@@ -74,6 +74,24 @@
             <h3>System Status</h3>
             <p class="stat-value" style="color: #2ecc71; font-size: 18px;">All Systems Operational</p>
         </div>
+        <div class="stat-card" style="background: linear-gradient(135deg, #e50914 0%, #ff1744 100%);">
+            <h3>Bug Reports</h3>
+            <a th:href="@{/super-admin/bug-reports}" style="color: white; text-decoration: none; font-weight: 700;">
+                <p class="stat-value" style="color: white; font-size: 24px;">
+                    <span th:text="${totalReports}">0</span> Open
+                </p>
+                <div style="color:#ffd6d9;">View Reports</div>
+            </a>
+        </div>
+        <div class="stat-card" style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);">
+            <h3>Admin Requests</h3>
+            <a th:href="@{/super-admin/admin-requests}" style="color: white; text-decoration: none; font-weight: 700;">
+                <p class="stat-value" style="color: white; font-size: 24px;">
+                    <span th:text="${pendingRequests}">0</span> Pending
+                </p>
+                <div style="color:#ffe6cc;">Review Requests</div>
+            </a>
+        </div>
     </div>
 
     <div th:if="${param.error != null}">
@@ -85,6 +103,17 @@
         <span th:if="${param.success != null}">[[${param.success[0]}]]</span>
     </div>
 
+    <div class="nf-section" style="margin-bottom: 24px;">
+        <div class="section-header">
+            <h2>Quick Actions</h2>
+        </div>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <a class="nf-button" th:href="@{/super-admin/admin-requests}">Review Admin Requests</a>
+            <a class="nf-button nf-secondary" th:href="@{/super-admin/email-config}">Email Configuration</a>
+            <a class="nf-button nf-secondary" th:href="@{/super-admin/bug-reports}">View Bug Reports</a>
+        </div>
+    </div>
+    
     <div class="nf-section">
         <div class="section-header">
             <h2>Tenant Management</h2>
@@ -103,26 +132,26 @@
             </tr>
             </thead>
             <tbody>
-                <tr th:if="${tenants == null or tenants.isEmpty()}">
-                    <td colspan="6" style="text-align: center; color: #aaa;">No tenants found. Click "Create Tenant" to add one.</td>
-                </tr>
-                <tr th:each="tenant : ${tenants}">
-                    <td th:text="${tenant.tenantId}"></td>
-                    <td th:text="${tenant.tenantName}"></td>
-                    <td th:text="${tenant.createdBy}"></td>
-                    <td>
-                        <span th:if="${tenant.active != null and tenant.active == true}" style="color: #2ecc71;">Active</span>
-                        <span th:if="${tenant.active == null or tenant.active == false}" style="color: #b81d24;">Inactive</span>
-                    </td>
-                    <td th:text="${tenant.createdAt}"></td>
-                    <td>
-                        <a class="nf-button nf-secondary" th:href="@{'/super-admin/tenants/' + ${tenant.tenantId} + '/users'}" style="margin-right: 8px; text-decoration: none; display: inline-block;">View Users</a>
-                        <a class="nf-button nf-secondary" th:href="@{'/super-admin/tenants/' + ${tenant.tenantId} + '/edit'}" style="margin-right: 8px; text-decoration: none; display: inline-block;">Edit</a>
-                        <form th:action="@{'/super-admin/tenants/' + ${tenant.tenantId} + '/delete'}" method="post" style="display:inline;" onsubmit="return confirm('Delete this tenant? All users must be removed first.');">
-                            <button class="nf-button nf-danger" type="submit">Delete</button>
-                        </form>
-                    </td>
-                </tr>
+            <tr th:if="${tenants == null or tenants.isEmpty()}">
+                <td colspan="6" style="text-align: center; color: #aaa;">No tenants found. Click "Create Tenant" to add one.</td>
+            </tr>
+            <tr th:each="tenant : ${tenants}">
+                <td th:text="${tenant.tenantId}"></td>
+                <td th:text="${tenant.tenantName}"></td>
+                <td th:text="${tenant.createdBy}"></td>
+                <td>
+                    <span th:if="${tenant.active != null and tenant.active == true}" style="color: #2ecc71;">Active</span>
+                    <span th:if="${tenant.active == null or tenant.active == false}" style="color: #b81d24;">Inactive</span>
+                </td>
+                <td th:text="${tenant.createdAt}"></td>
+                <td>
+                    <a class="nf-button nf-secondary" th:href="@{'/super-admin/tenants/' + ${tenant.tenantId} + '/users'}" style="margin-right: 8px; text-decoration: none; display: inline-block;">View Users</a>
+                    <a class="nf-button nf-secondary" th:href="@{'/super-admin/tenants/' + ${tenant.tenantId} + '/edit'}" style="margin-right: 8px; text-decoration: none; display: inline-block;">Edit</a>
+                    <form th:action="@{'/super-admin/tenants/' + ${tenant.tenantId} + '/delete'}" method="post" style="display:inline;" onsubmit="return confirm('Delete this tenant? All users must be removed first.');">
+                        <button class="nf-button nf-danger" type="submit">Delete</button>
+                    </form>
+                </td>
+            </tr>
             </tbody>
         </table>
     </div>
@@ -145,31 +174,32 @@
             </tr>
             </thead>
             <tbody>
-                <tr th:if="${users == null or users.isEmpty()}">
-                    <td colspan="8" style="text-align: center; color: #aaa;">No users found</td>
-                </tr>
-                <tr th:each="u : ${users}">
-                    <td th:text="${u.id}"></td>
-                    <td th:text="${u.username}"></td>
-                    <td th:text="${u.email}"></td>
-                    <td th:text="${u.firstName}"></td>
-                    <td th:text="${u.lastName}"></td>
-                    <td>
+            <tr th:if="${users == null or users.isEmpty()}">
+                <td colspan="8" style="text-align: center; color: #aaa;">No users found</td>
+            </tr>
+            <tr th:each="u : ${users}">
+                <td th:text="${u.id}"></td>
+                <td th:text="${u.username}"></td>
+                <td th:text="${u.email}"></td>
+                <td th:text="${u.firstName}"></td>
+                <td th:text="${u.lastName}"></td>
+                <td>
                         <span th:switch="${u.userRole}">
                             <span th:case="SUPER_ADMIN" style="color: #e50914;">Super Admin</span>
                             <span th:case="CUSTOMER_ADMIN" style="color: #ff9800;">Customer Admin</span>
                             <span th:case="END_USER" style="color: #2ecc71;">End User</span>
                         </span>
-                    </td>
-                    <td th:text="${u.tenant != null ? u.tenant.tenantName : 'N/A'}"></td>
-                    <td>
-                        <span th:if="${u.enabled == true}" style="color: #2ecc71;">Yes</span>
-                        <span th:if="${u.enabled == false}" style="color: #b81d24;">No</span>
-                    </td>
-                </tr>
+                </td>
+                <td th:text="${u.tenant != null ? u.tenant.tenantName : 'N/A'}"></td>
+                <td>
+                    <span th:if="${u.enabled == true}" style="color: #2ecc71;">Yes</span>
+                    <span th:if="${u.enabled == false}" style="color: #b81d24;">No</span>
+                </td>
+            </tr>
             </tbody>
         </table>
     </div>
+
 </div>
 </body>
 </html>

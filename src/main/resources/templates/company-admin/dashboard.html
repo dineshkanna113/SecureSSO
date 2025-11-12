@@ -105,33 +105,33 @@
             </tr>
             </thead>
             <tbody>
-                <tr th:if="${users == null or users.isEmpty()}">
-                    <td colspan="8" style="text-align: center; color: #aaa;">No users found. Click "Add End User" to create one.</td>
-                </tr>
-                <tr th:each="u : ${users}">
-                    <td th:text="${u.id}"></td>
-                    <td th:text="${u.username}"></td>
-                    <td th:text="${u.email}"></td>
-                    <td th:text="${u.firstName}"></td>
-                    <td th:text="${u.lastName}"></td>
-                    <td>
+            <tr th:if="${users == null or users.isEmpty()}">
+                <td colspan="8" style="text-align: center; color: #aaa;">No users found. Click "Add End User" to create one.</td>
+            </tr>
+            <tr th:each="u : ${users}">
+                <td th:text="${u.id}"></td>
+                <td th:text="${u.username}"></td>
+                <td th:text="${u.email}"></td>
+                <td th:text="${u.firstName}"></td>
+                <td th:text="${u.lastName}"></td>
+                <td>
                         <span th:switch="${u.userRole}">
                             <span th:case="CUSTOMER_ADMIN" style="color: #ff9800;">Customer Admin</span>
                             <span th:case="END_USER" style="color: #2ecc71;">End User</span>
                             <span th:case="*" th:text="${u.userRole}"></span>
                         </span>
-                    </td>
-                    <td>
-                        <span th:if="${u.enabled == true}" style="color: #2ecc71;">Yes</span>
-                        <span th:if="${u.enabled == false}" style="color: #b81d24;">No</span>
-                    </td>
-                    <td>
-                        <a class="nf-button nf-secondary" th:href="@{'/' + ${company} + '/customer-admin/users/' + ${u.id} + '/edit'}" style="margin-right: 8px; text-decoration: none; display: inline-block; padding: 6px 12px; font-size: 14px;">Edit</a>
-                        <form th:action="@{'/' + ${company} + '/customer-admin/users/' + ${u.id} + '/delete'}" method="post" style="display:inline;" onsubmit="return confirm('Delete this user?');">
-                            <button class="nf-button nf-danger" type="submit" style="padding: 6px 12px; font-size: 14px;">Delete</button>
-                        </form>
-                    </td>
-                </tr>
+                </td>
+                <td>
+                    <span th:if="${u.enabled == true}" style="color: #2ecc71;">Yes</span>
+                    <span th:if="${u.enabled == false}" style="color: #b81d24;">No</span>
+                </td>
+                <td>
+                    <a class="nf-button nf-secondary" th:href="@{'/' + ${company} + '/customer-admin/users/' + ${u.id} + '/edit'}" style="margin-right: 8px; text-decoration: none; display: inline-block; padding: 6px 12px; font-size: 14px;">Edit</a>
+                    <form th:action="@{'/' + ${company} + '/customer-admin/users/' + ${u.id} + '/delete'}" method="post" style="display:inline;" onsubmit="return confirm('Delete this user?');">
+                        <button class="nf-button nf-danger" type="submit" style="padding: 6px 12px; font-size: 14px;">Delete</button>
+                    </form>
+                </td>
+            </tr>
             </tbody>
         </table>
     </div>
@@ -141,8 +141,7 @@
             <h2>SSO Configuration</h2>
         </div>
         <p style="color: #aaa; margin-bottom: 20px;">Configure SSO settings for your organization. This allows your end users to sign in using your identity provider.</p>
-        
-        <!-- SSO Toggle -->
+
         <div class="nf-card" style="margin-bottom: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                 <div>
@@ -153,8 +152,8 @@
                 </div>
                 <form th:action="@{'/' + ${company} + '/customer-admin/sso/toggle'}" method="post" style="display: inline;">
                     <input type="hidden" name="enabled" th:value="${!config.ssoEnabled}"/>
-                    <button type="submit" 
-                            class="nf-button" 
+                    <button type="submit"
+                            class="nf-button"
                             th:classappend="${config.ssoEnabled} ? 'nf-success' : 'nf-secondary'"
                             th:text="${config.ssoEnabled} ? 'Disable SSO' : 'Enable SSO'">
                         Toggle SSO
@@ -167,8 +166,7 @@
                 <span th:unless="${config.ssoEnabled}" style="color: #b81d24; font-weight: 600;">DISABLED</span>
             </div>
         </div>
-        
-        <!-- SSO Providers Management -->
+
         <div class="nf-section" th:if="${config.ssoEnabled}">
             <div class="section-header">
                 <div>
@@ -181,52 +179,211 @@
                 </div>
             </div>
             
+            <div class="nf-card" style="background: rgba(229,9,20,0.06); border: 1px solid rgba(229,9,20,0.35); padding: 20px; margin-bottom: 20px;">
+                <h4 style="margin: 0 0 12px 0; color: #fff;">Your Service Provider (SP) URLs</h4>
+                <p style="margin: 0 0 16px 0; color: #aaa; font-size: 14px;">Select provider type to see the appropriate URLs for your Identity Provider (IdP) configuration.</p>
+                
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px;">Provider Type:</label>
+                    <select id="metadataTypeSelector" onchange="updateMetadataUrls()" style="width: 100%; padding: 10px; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 4px; font-size: 14px;">
+                        <option value="SAML">SAML</option>
+                        <option value="OIDC">OIDC / OAuth2</option>
+                        <option value="JWT">JWT</option>
+                    </select>
+                </div>
+                
+                <div id="samlMetadataUrls" style="display: flex; flex-direction: column; gap: 12px;">
+                    <div>
+                        <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px;">SP Entity ID (Issuer / Audience URI):</label>
+                        <input type="text" readonly id="samlEntityId" th:value="${'https://' + #httpServletRequest.serverName + ('' + #httpServletRequest.serverPort != '80' && '' + #httpServletRequest.serverPort != '443' ? ':' + #httpServletRequest.serverPort : '') + '/' + company}" 
+                               style="width: 100%; padding: 10px; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 4px; font-family: monospace; font-size: 13px;">
+                    </div>
+                    <div>
+                        <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px;">ACS URL (Reply URL):</label>
+                        <input type="text" readonly id="samlAcsUrl" th:value="${'https://' + #httpServletRequest.serverName + ('' + #httpServletRequest.serverPort != '80' && '' + #httpServletRequest.serverPort != '443' ? ':' + #httpServletRequest.serverPort : '') + '/' + company + '/sso/saml2/acs'}" 
+                               style="width: 100%; padding: 10px; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 4px; font-family: monospace; font-size: 13px;">
+                    </div>
+                    <div>
+                        <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px;">Metadata URL:</label>
+                        <input type="text" readonly id="samlMetadataUrl" th:value="${'https://' + #httpServletRequest.serverName + ('' + #httpServletRequest.serverPort != '80' && '' + #httpServletRequest.serverPort != '443' ? ':' + #httpServletRequest.serverPort : '') + '/' + company + '/customer-admin/sso/metadata?type=SAML'}" 
+                               style="width: 100%; padding: 10px; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 4px; font-family: monospace; font-size: 13px;">
+                        <small style="color: #888; display: block; margin-top: 6px;">You can use this URL to automatically configure your IdP with our service provider metadata.</small>
+                    </div>
+                </div>
+                
+                <div id="oidcMetadataUrls" style="display: none; flex-direction: column; gap: 12px;">
+                    <div>
+                        <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px;">Redirect URI (Callback URL):</label>
+                        <input type="text" readonly id="oidcRedirectUri" th:value="${'https://' + #httpServletRequest.serverName + ('' + #httpServletRequest.serverPort != '80' && '' + #httpServletRequest.serverPort != '443' ? ':' + #httpServletRequest.serverPort : '') + '/' + company + '/sso/oauth2/callback'}" 
+                               style="width: 100%; padding: 10px; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 4px; font-family: monospace; font-size: 13px;">
+                    </div>
+                    <div>
+                        <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px;">Authorization URL Template:</label>
+                        <textarea readonly id="oidcAuthUrl" rows="4" style="width: 100%; padding: 10px; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 4px; font-family: monospace; font-size: 12px; resize: vertical;"></textarea>
+                        <small style="color: #888; display: block; margin-top: 6px;">Replace {CLIENT_ID} with your actual Client ID. This is the URL format your IdP should use for authorization.</small>
+                    </div>
+                    <div>
+                        <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px;">Metadata URL:</label>
+                        <input type="text" readonly id="oidcMetadataUrl" th:value="${'https://' + #httpServletRequest.serverName + ('' + #httpServletRequest.serverPort != '80' && '' + #httpServletRequest.serverPort != '443' ? ':' + #httpServletRequest.serverPort : '') + '/' + company + '/customer-admin/sso/metadata?type=OIDC'}" 
+                               style="width: 100%; padding: 10px; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 4px; font-family: monospace; font-size: 13px;">
+                    </div>
+                </div>
+                
+                <div id="jwtMetadataUrls" style="display: none; flex-direction: column; gap: 12px;">
+                    <div>
+                        <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px;">Redirect URI (Callback URL):</label>
+                        <input type="text" readonly id="jwtRedirectUri" th:value="${'https://' + #httpServletRequest.serverName + ('' + #httpServletRequest.serverPort != '80' && '' + #httpServletRequest.serverPort != '443' ? ':' + #httpServletRequest.serverPort : '') + '/' + company + '/sso/jwt/callback'}" 
+                               style="width: 100%; padding: 10px; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 4px; font-family: monospace; font-size: 13px;">
+                    </div>
+                    <div>
+                        <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px;">SSO URL Template:</label>
+                        <textarea readonly id="jwtSsoUrl" rows="3" style="width: 100%; padding: 10px; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 4px; font-family: monospace; font-size: 12px; resize: vertical;"></textarea>
+                        <small style="color: #888; display: block; margin-top: 6px;">Replace {CLIENT_ID} and {REDIRECT_URI} with your actual values. This is the URL format your IdP should use for JWT SSO.</small>
+                    </div>
+                    <div>
+                        <label style="display: block; color: #aaa; font-size: 12px; margin-bottom: 6px;">Metadata URL:</label>
+                        <input type="text" readonly id="jwtMetadataUrl" th:value="${'https://' + #httpServletRequest.serverName + ('' + #httpServletRequest.serverPort != '80' && '' + #httpServletRequest.serverPort != '443' ? ':' + #httpServletRequest.serverPort : '') + '/' + company + '/customer-admin/sso/metadata?type=JWT'}" 
+                               style="width: 100%; padding: 10px; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 4px; font-family: monospace; font-size: 13px;">
+                    </div>
+                </div>
+            </div>
+            
+            <script>
+                function updateMetadataUrls() {
+                    const type = document.getElementById('metadataTypeSelector').value;
+                    const serverName = '[[${#httpServletRequest.serverName}]]';
+                    const serverPort = '[[${#httpServletRequest.serverPort}]]';
+                    const portSuffix = (serverPort != '80' && serverPort != '443') ? ':' + serverPort : '';
+                    const baseUrl = 'http' + (serverPort == '443' ? 's' : '') + '://' + serverName + portSuffix;
+                    const company = '[[${company}]]';
+                    const redirectUri = baseUrl + '/' + company + '/sso/oauth2/callback';
+                    const jwtRedirectUri = baseUrl + '/' + company + '/sso/jwt/callback';
+                    
+                    // Hide all sections
+                    document.getElementById('samlMetadataUrls').style.display = 'none';
+                    document.getElementById('oidcMetadataUrls').style.display = 'none';
+                    document.getElementById('jwtMetadataUrls').style.display = 'none';
+                    
+                    if (type === 'SAML') {
+                        document.getElementById('samlMetadataUrls').style.display = 'flex';
+                    } else if (type === 'OIDC') {
+                        document.getElementById('oidcMetadataUrls').style.display = 'flex';
+                        // Set OIDC authorization URL template in the correct format
+                        // Format: {AUTHORIZATION_ENDPOINT}?client_id={CLIENT_ID}&redirect_uri={REDIRECT_URI}&response_type=code&scope=openid+profile+email&state={STATE}&nonce={NONCE}
+                        const oidcAuthTemplate = '{AUTHORIZATION_ENDPOINT}?client_id={CLIENT_ID}&redirect_uri=' + encodeURIComponent(redirectUri) + '&response_type=code&scope=openid+profile+email&state={STATE}&nonce={NONCE}';
+                        document.getElementById('oidcAuthUrl').value = oidcAuthTemplate;
+                        // Update help text
+                        const helpText = document.querySelector('#oidcMetadataUrls small');
+                        if (helpText) {
+                            helpText.textContent = 'Replace {AUTHORIZATION_ENDPOINT} with your IdP\'s authorization endpoint (e.g., https://csumairkhan.xecurify.com/moas/idp/openidsso) and {CLIENT_ID} with your actual Client ID. The redirect_uri, state, and nonce will be generated automatically.';
+                        }
+                    } else if (type === 'JWT') {
+                        document.getElementById('jwtMetadataUrls').style.display = 'flex';
+                        // Set JWT SSO URL template
+                        const jwtSsoTemplate = '{SSO_URL}?client_id={CLIENT_ID}&redirect_uri=' + encodeURIComponent(jwtRedirectUri);
+                        document.getElementById('jwtSsoUrl').value = jwtSsoTemplate;
+                    }
+                }
+                
+                // Initialize on page load
+                document.addEventListener('DOMContentLoaded', function() {
+                    updateMetadataUrls();
+                });
+            </script>
+
             <table class="nf-table" id="providersTable">
                 <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>Type</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
                 </thead>
                 <tbody>
-                    <tr th:if="${ssoProviders == null or ssoProviders.isEmpty()}">
-                        <td colspan="5" style="text-align: center; color: #aaa; padding: 20px;">No SSO providers configured yet. Click "Add SSO Provider" to create one.</td>
-                    </tr>
-                    <tr th:each="provider : ${ssoProviders}">
-                        <td th:text="${provider.id}">1</td>
-                        <td th:text="${provider.name}">Provider Name</td>
-                        <td><span class="nf-badge" th:text="${provider.type}">OIDC</span></td>
-                        <td>
-                            <span th:if="${provider.active}" style="color: #2ecc71; font-weight: 600;">ACTIVE</span>
-                            <span th:unless="${provider.active}" style="color: #aaa;">INACTIVE</span>
-                        </td>
-                        <td>
-                            <button class="nf-button nf-success" th:if="${!provider.active}" 
-                                    th:onclick="'activateProvider(' + ${provider.id} + ')'" 
-                                    style="margin-right: 8px;">Activate</button>
-                            <button class="nf-button nf-secondary" th:if="${provider.active}" 
-                                    th:onclick="'deactivateProvider(' + ${provider.id} + ')'" 
-                                    style="margin-right: 8px;">Deactivate</button>
-                            <button class="nf-button nf-secondary" 
-                                    th:onclick="'editProvider(' + ${provider.id} + ')'" 
-                                    style="margin-right: 8px;">Edit</button>
-                            <button class="nf-button nf-danger" 
-                                    th:onclick="'deleteProvider(' + ${provider.id} + ')'" 
-                                    style="margin-right: 8px;">Delete</button>
-                            <button class="nf-button" 
-                                    th:onclick="'testProvider(' + ${provider.id} + ')'">Test</button>
-                        </td>
-                    </tr>
+                <tr th:if="${ssoProviders == null or ssoProviders.isEmpty()}">
+                    <td colspan="5" style="text-align: center; color: #aaa; padding: 20px;">No SSO providers configured yet. Click "Add SSO Provider" to create one.</td>
+                </tr>
+                <tr th:each="provider : ${ssoProviders}">
+                    <td th:text="${provider.id}">1</td>
+                    <td th:text="${provider.name}">Provider Name</td>
+                    <td><span class="nf-badge" th:text="${provider.type}">OIDC</span></td>
+                    <td>
+                        <span th:if="${provider.active}" style="color: #2ecc71; font-weight: 600;">ACTIVE</span>
+                        <span th:unless="${provider.active}" style="color: #aaa;">INACTIVE</span>
+                    </td>
+                    <td>
+                        <button class="nf-button nf-success" th:if="${!provider.active}"
+                                th:onclick="'activateProvider(' + ${provider.id} + ')'"
+                                style="margin-right: 8px;">Activate</button>
+                        <button class="nf-button nf-secondary" th:if="${provider.active}"
+                                th:onclick="'deactivateProvider(' + ${provider.id} + ')'"
+                                style="margin-right: 8px;">Deactivate</button>
+                        <button class="nf-button nf-secondary"
+                                th:onclick="'editProvider(' + ${provider.id} + ')'"
+                                style="margin-right: 8px;">Edit</button>
+                        <button class="nf-button nf-danger"
+                                th:onclick="'deleteProvider(' + ${provider.id} + ')'"
+                                style="margin-right: 8px;">Delete</button>
+                        <button class="nf-button"
+                                th:onclick="'testProvider(' + ${provider.id} + ')'">Test</button>
+                    </td>
+                </tr>
                 </tbody>
             </table>
         </div>
     </div>
 </div>
 
-<!-- Add/Edit SSO Provider Modal -->
+<!-- Test Result Modal -->
+<div id="testResultModal" class="nf-modal" th:if="${testSuccess}" style="display: flex;">
+    <div class="nf-modal-content" style="max-width: 800px;">
+        <div class="nf-modal-header" style="padding: 24px; border-bottom: 1px solid #333;">
+            <h3 style="margin: 0; font-size: 24px; font-weight: 700;">SSO Test Result</h3>
+            <button class="nf-button nf-secondary" onclick="closeTestModal()" style="padding: 8px 16px; font-size: 20px; line-height: 1;">×</button>
+        </div>
+        <div class="nf-modal-body" style="padding: 24px;">
+            <div class="nf-card" style="background: rgba(46, 204, 113, 0.1); border: 1px solid rgba(46, 204, 113, 0.3); padding: 16px; margin-bottom: 20px;">
+                <h4 style="margin: 0 0 8px 0; color: #2ecc71;">✓ Test Successful</h4>
+                <p style="margin: 0; color: #aaa;">Protocol: <strong th:text="${testProtocol}">SAML</strong></p>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <h4 style="margin: 0 0 12px 0;">NameID / Username</h4>
+                <div class="nf-card" style="padding: 12px; background: rgba(255,255,255,0.03);">
+                    <code th:text="${testNameId}">user@example.com</code>
+                </div>
+            </div>
+            <div th:if="${testAttributes != null and !testAttributes.isEmpty()}">
+                <h4 style="margin: 0 0 12px 0;">Attributes</h4>
+                <table class="nf-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="entry : ${testAttributes}">
+                            <td th:text="${entry.key}">Attribute Name</td>
+                            <td><code th:text="${entry.value != null ? entry.value : ''}">Attribute Value</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="nf-actions" style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #333; display: flex; justify-content: flex-end;">
+                <button class="nf-button" onclick="closeTestModal()">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function closeTestModal() {
+        document.getElementById('testResultModal').style.display = 'none';
+    }
+</script>
+
 <div id="addSsoModal" class="nf-modal" style="display: none;">
     <div class="nf-modal-content" style="max-width: 960px; max-height: 92vh; overflow-y: auto; padding: 0; background: #111;">
         <div class="nf-modal-header" style="padding: 24px 28px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center;">
@@ -255,180 +412,193 @@
                     <small style="color: #888; display: block;">Choose the protocol supported by the identity provider you are configuring.</small>
                 </div>
 
-                <div id="newOidcFields" class="nf-card" style="display: none; padding: 20px; background: rgba(255,255,255,0.03); border: 1px solid #282828;">
-                    <h4 style="margin: 0 0 12px 0; font-size: 18px; font-weight: 600; color: #fff;">OIDC / OAuth2 Configuration</h4>
-                    <p style="margin: 0 0 20px 0; color: #b5b5b5; font-size: 14px;">Use the discovery URL to auto-import settings or enter everything manually.</p>
+                <div id="newOidcFields" style="display: none; display: flex; flex-direction: column; gap: 24px;">
+                    <div class="nf-card" style="padding: 20px; background: rgba(255,255,255,0.03); border: 1px solid #282828;">
+                        <h4 style="margin: 0 0 12px 0; font-size: 18px; font-weight: 600; color: #fff;">OIDC / OAuth2 Configuration</h4>
+                        <p style="margin: 0 0 20px 0; color: #b5b5b5; font-size: 14px;">Use the discovery URL to auto-import settings or enter everything manually.</p>
 
-                    <div class="nf-card" style="background: rgba(229,9,20,0.06); border: 1px solid rgba(229,9,20,0.35); padding: 16px; margin-bottom: 16px;">
-                        <div style="font-weight: 600; color: #fff; margin-bottom: 8px;">Option 1 — Import from Discovery URL (Recommended)</div>
-                        <label>OIDC Discovery URL</label>
-                        <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 8px;">
-                            <input type="text" id="newOidcDiscoveryUrl" placeholder="https://kanna.xecurify.com/moas/discovery/v2.0/{CLIENT_ID}/.well-known/openid-configuration" style="flex: 1;">
-                            <button type="button" class="nf-button nf-secondary" onclick="importOidcDiscoveryModal()">Import from Discovery URL</button>
+                        <div class="nf-card" style="background: rgba(229,9,20,0.06); border: 1px solid rgba(229,9,20,0.35); padding: 16px; margin-bottom: 16px;">
+                            <div style="font-weight: 600; color: #fff; margin-bottom: 8px;">Option 1 — Import from Discovery URL (Recommended)</div>
+                            <label>OIDC Discovery URL</label>
+                            <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 8px;">
+                                <input type="text" id="newOidcDiscoveryUrl" placeholder="https://kanna.xecurify.com/moas/discovery/v2.0/{CLIENT_ID}/.well-known/openid-configuration" style="flex: 1;">
+                                <button type="button" class="nf-button nf-secondary" onclick="importOidcDiscoveryModal()">Import from Discovery URL</button>
+                            </div>
+                            <small style="color: #e8e8e8; display: block;">Paste the discovery URL provided by your IdP.</small>
+                            <small style="color: #f5c542; display: block; margin-top: 8px;">⚠️ After importing, verify the Redirect URI matches your IdP configuration.</small>
                         </div>
-                        <small style="color: #e8e8e8; display: block;">miniOrange: Use your discovery URL with the Client ID, e.g., <code style="background:#1f1f1f; padding:2px 6px; border-radius:4px;">https://kanna.xecurify.com/moas/discovery/v2.0/{CLIENT_ID}/.well-known/openid-configuration</code></small>
-                        <small style="color: #f5c542; display: block; margin-top: 8px;">⚠️ After importing, make sure the Redirect URI matches exactly what you configured in miniOrange (typically <code style="background:#1f1f1f; padding:2px 6px; border-radius:4px;">http://localhost:8080/sso/oauth2/callback</code>).</small>
-                    </div>
 
-                    <div style="text-align: center; color: #777; margin: 12px 0;">— or —</div>
+                        <div style="text-align: center; color: #777; margin: 12px 0;">— or —</div>
 
-                    <div class="nf-card" style="padding: 16px; background: rgba(255,255,255,0.02); border: 1px dashed #333;">
-                        <div style="font-weight: 600; color: #fff; margin-bottom: 12px;">Option 2 — Enter Manually</div>
-                        <div style="display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));">
-                            <div>
-                                <label>Client ID *</label>
-                                <input type="text" id="newOidcClientId" placeholder="Enter OIDC Client ID">
-                            </div>
-                            <div>
-                                <label>Client Secret *</label>
-                                <input type="password" id="newOidcClientSecret" placeholder="Enter OIDC Client Secret">
-                            </div>
-                            <div>
-                                <label>Redirect URI (Callback URL) *</label>
-                                <input type="text" id="newOidcRedirectUri" placeholder="http://localhost:8080/sso/oauth2/callback">
-                                <small style="color: #f5c542; display: block;">⚠️ Must match exactly what is configured in the IdP.</small>
-                            </div>
-                            <div>
-                                <label>Issuer URL</label>
-                                <input type="text" id="newOidcIssuerUri" placeholder="https://kanna.xecurify.com/moas/discovery/v2.0/{CLIENT_ID}">
-                            </div>
-                            <div>
-                                <label>Scopes</label>
-                                <input type="text" id="newOidcScopes" placeholder="openid profile email" value="openid profile email">
-                            </div>
-                        </div>
-                        <div style="margin-top: 16px; display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));">
-                            <div>
-                                <label>Authorization Endpoint (optional)</label>
-                                <input type="text" id="newOidcAuthz" placeholder="Enter Authorization Endpoint">
-                            </div>
-                            <div>
-                                <label>Token Endpoint (optional)</label>
-                                <input type="text" id="newOidcToken" placeholder="Enter Token Endpoint">
-                            </div>
-                            <div>
-                                <label>User Info Endpoint (optional)</label>
-                                <input type="text" id="newOidcUserInfo" placeholder="Enter User Info Endpoint">
-                            </div>
-                            <div>
-                                <label>Logout Endpoint (optional)</label>
-                                <input type="text" id="newOidcLogout" placeholder="Enter Logout Endpoint">
+                        <div class="nf-card" style="padding: 16px; background: rgba(255,255,255,0.02); border: 1px dashed #333;">
+                            <div style="font-weight: 600; color: #fff; margin-bottom: 12px;">Option 2 — Enter Manually</div>
+
+                            <div style="display: flex; flex-direction: column; gap: 16px;">
+                                <div>
+                                    <label>Client ID *</label>
+                                    <input type="text" id="newOidcClientId" placeholder="Enter OIDC Client ID" style="width: 100%;">
+                                </div>
+                                <div>
+                                    <label>Client Secret *</label>
+                                    <input type="password" id="newOidcClientSecret" placeholder="Enter OIDC Client Secret" style="width: 100%;">
+                                </div>
+                                <div>
+                                    <label>Redirect URI (Callback URL) *</label>
+                                    <input type="text" id="newOidcRedirectUri" placeholder="http://localhost:8080/sso/oauth2/callback" style="width: 100%;">
+                                    <small style="color: #f5c542; display: block; margin-top: 4px;">⚠️ Must match exactly what is configured in the IdP.</small>
+                                </div>
+                                <div>
+                                    <label>Issuer URL</label>
+                                    <input type="text" id="newOidcIssuerUri" placeholder="https://idp.example.com/oauth2/issuer" style="width: 100%;">
+                                </div>
+                                <div>
+                                    <label>Scopes</label>
+                                    <input type="text" id="newOidcScopes" placeholder="openid profile email" value="openid profile email" style="width: 100%;">
+                                </div>
                             </div>
                         </div>
-                        <small style="color: #888; display: block; margin-top: 12px;">If the endpoints are left blank they will be auto-detected from the Issuer or discovery document.</small>
+
+                        <div class="nf-card" style="padding: 16px; background: rgba(255,255,255,0.02); border: 1px dashed #333; margin-top: 16px;">
+                            <div style="font-weight: 600; color: #fff; margin-bottom: 12px;">Optional Endpoints (Auto-Discovery Fallback)</div>
+
+                            <div style="display: flex; flex-direction: column; gap: 16px;">
+                                <div>
+                                    <label>Authorization Endpoint</label>
+                                    <input type="text" id="newOidcAuthz" placeholder="Enter Authorization Endpoint" style="width: 100%;">
+                                </div>
+                                <div>
+                                    <label>Token Endpoint</label>
+                                    <input type="text" id="newOidcToken" placeholder="Enter Token Endpoint" style="width: 100%;">
+                                </div>
+                                <div>
+                                    <label>User Info Endpoint</label>
+                                    <input type="text" id="newOidcUserInfo" placeholder="Enter User Info Endpoint" style="width: 100%;">
+                                </div>
+                                <div>
+                                    <label>Logout Endpoint</label>
+                                    <input type="text" id="newOidcLogout" placeholder="Enter Logout Endpoint" style="width: 100%;">
+                                </div>
+                            </div>
+                            <small style="color: #888; display: block; margin-top: 12px;">These endpoints are only required if auto-discovery fails or is not used.</small>
+                        </div>
                     </div>
                 </div>
 
-                <div id="newSamlFields" class="nf-card" style="display: none; padding: 20px; background: rgba(255,255,255,0.03); border: 1px solid #282828;">
-                    <h4 style="margin: 0 0 12px 0; font-size: 18px; font-weight: 600; color: #fff;">SAML Configuration</h4>
-                    <p style="margin: 0 0 20px 0; color: #b5b5b5; font-size: 14px;">Use any one of the options below to configure SAML for this provider.</p>
+                <div id="newSamlFields" style="display: none; display: flex; flex-direction: column; gap: 24px;">
+                    <div class="nf-card" style="padding: 20px; background: rgba(255,255,255,0.03); border: 1px solid #282828;">
+                        <h4 style="margin: 0 0 12px 0; font-size: 18px; font-weight: 600; color: #fff;">SAML Configuration</h4>
+                        <p style="margin: 0 0 20px 0; color: #b5b5b5; font-size: 14px;">Use any one of the options below to configure SAML for this provider.</p>
 
-                    <div class="nf-card" style="background: rgba(229,9,20,0.06); border: 1px solid rgba(229,9,20,0.35); padding: 16px; margin-bottom: 16px;">
-                        <div style="font-weight: 600; color: #fff; margin-bottom: 8px;">Option 1 — Import from Metadata URL</div>
-                        <label>Metadata URL</label>
-                        <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 8px;">
-                            <input type="text" id="newSamlMetadataUrl" placeholder="https://idp.example.com/metadata" style="flex: 1;">
-                            <button type="button" class="nf-button nf-secondary" onclick="importSamlMetadataUrlModal()">Import</button>
+                        <div class="nf-card" style="background: rgba(229,9,20,0.06); border: 1px solid rgba(229,9,20,0.35); padding: 16px; margin-bottom: 16px;">
+                            <div style="font-weight: 600; color: #fff; margin-bottom: 8px;">Option 1 — Import from Metadata URL</div>
+                            <label>Metadata URL</label>
+                            <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 8px;">
+                                <input type="text" id="newSamlMetadataUrl" placeholder="https://idp.example.com/metadata" style="flex: 1;">
+                                <button type="button" class="nf-button nf-secondary" onclick="importSamlMetadataUrlModal()">Import</button>
+                            </div>
+                            <small style="color: #e8e8e8; display: block;">Paste the metadata URL exposed by the IdP. Entity ID, SSO URL, and certificate will be auto-filled.</small>
                         </div>
-                        <small style="color: #e8e8e8; display: block;">Paste the metadata URL exposed by the IdP. The entity ID, SSO URL, and certificate will be auto-filled.</small>
-                    </div>
 
-                    <div style="text-align: center; color: #777; margin: 12px 0;">— or —</div>
+                        <div class="nf-card" style="padding: 16px; background: rgba(255,255,255,0.02); border: 1px dashed #333; margin-bottom: 16px;">
+                            <div style="font-weight: 600; color: #fff; margin-bottom: 8px;">Option 2 — Upload Metadata XML</div>
+                            <label class="nf-button" style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
+                                Upload XML File
+                                <input type="file" accept=".xml" style="display: none" onchange="importSamlMetadataFileModal(this)">
+                            </label>
+                            <small style="color: #888; display: block; margin-top: 8px;">Upload the XML metadata file exported from your IdP.</small>
+                        </div>
 
-                    <div class="nf-card" style="padding: 16px; background: rgba(255,255,255,0.02); border: 1px dashed #333; margin-bottom: 16px;">
-                        <div style="font-weight: 600; color: #fff; margin-bottom: 8px;">Option 2 — Upload Metadata XML</div>
-                        <label class="nf-button" style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
-                            Upload XML File
-                            <input type="file" accept=".xml" style="display: none" onchange="importSamlMetadataFileModal(this)">
-                        </label>
-                        <small style="color: #888; display: block; margin-top: 8px;">Upload the XML metadata file exported from your IdP. We will extract the entity ID, login URL, certificate, and store the full XML.</small>
-                    </div>
+                        <div style="text-align: center; color: #777; margin: 12px 0;">— or —</div>
 
-                    <div style="text-align: center; color: #777; margin: 12px 0;">— or —</div>
+                        <div style="display: flex; flex-direction: column; gap: 16px;">
+                            <div style="font-weight: 600; color: #fff;">Option 3 — Enter Manually</div>
 
-                    <div style="display: grid; gap: 16px;">
-                        <div style="font-weight: 600; color: #fff;">Option 3 — Enter Manually</div>
-                        <div style="display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));">
                             <div>
                                 <label>SAML Entity ID</label>
-                                <input type="text" id="newSamlEntityId" placeholder="Enter SAML Entity ID">
+                                <input type="text" id="newSamlEntityId" placeholder="Enter SAML Entity ID" style="width: 100%;">
                             </div>
                             <div>
                                 <label>SAML SSO URL</label>
-                                <input type="text" id="newSamlSsoUrl" placeholder="Enter SAML Login URL">
+                                <input type="text" id="newSamlSsoUrl" placeholder="Enter SAML Login URL" style="width: 100%;">
                             </div>
-                        </div>
-                        <div>
-                            <label>SAML X509 Certificate (PEM)</label>
-                            <textarea id="newSamlX509Cert" rows="5" placeholder="-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"></textarea>
-                        </div>
-                        <div>
-                            <label>Full SAML Metadata XML (optional)</label>
-                            <textarea id="newSamlMetadataXml" rows="4" placeholder="Paste full metadata XML if provided"></textarea>
+                            <div>
+                                <label>SAML X509 Certificate (PEM)</label>
+                                <textarea id="newSamlX509Cert" rows="5" placeholder="-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----" style="width: 100%;"></textarea>
+                            </div>
+                            <div>
+                                <label>Full SAML Metadata XML (optional)</label>
+                                <textarea id="newSamlMetadataXml" rows="4" placeholder="Paste full metadata XML if provided" style="width: 100%;"></textarea>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div id="newJwtFields" class="nf-card" style="display: none; padding: 20px; background: rgba(255,255,255,0.03); border: 1px solid #282828;">
-                    <h4 style="margin: 0 0 12px 0; font-size: 18px; font-weight: 600; color: #fff;">JWT Configuration</h4>
-                    <p style="margin: 0 0 16px 0; color: #b5b5b5; font-size: 14px;">Configure JWT SSO (miniOrange style) or token validation settings.</p>
+                <div id="newJwtFields" style="display: none; display: flex; flex-direction: column; gap: 24px;">
+                    <div class="nf-card" style="padding: 20px; background: rgba(255,255,255,0.03); border: 1px solid #282828;">
+                        <h4 style="margin: 0 0 12px 0; font-size: 18px; font-weight: 600; color: #fff;">JWT Configuration</h4>
+                        <p style="margin: 0 0 16px 0; color: #b5b5b5; font-size: 14px;">Configure JWT SSO (miniOrange style) or API token validation settings.</p>
 
-                    <div class="nf-card" style="background: rgba(229,9,20,0.06); border: 1px solid rgba(229,9,20,0.35); padding: 16px; margin-bottom: 16px;">
-                        <div style="font-weight: 600; color: #fff; margin-bottom: 12px;">JWT Login Flow — Required for miniOrange SSO</div>
-                        <div style="display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));">
-                            <div>
-                                <label>SSO URL *</label>
-                                <input type="text" id="newJwtSsoUrl" placeholder="https://kanna.xecurify.com/moas/idp/jwtsso/379412">
-                            </div>
-                            <div>
-                                <label>Client ID *</label>
-                                <input type="text" id="newJwtClientId" placeholder="Paste JWT Client ID">
-                            </div>
-                            <div>
-                                <label>Client Secret</label>
-                                <input type="password" id="newJwtClientSecret" placeholder="Paste JWT Client Secret">
-                            </div>
-                            <div>
-                                <label>Redirect URI (Callback URL)</label>
-                                <input type="text" id="newJwtRedirectUri" placeholder="http://localhost:8080/sso/jwt/callback">
-                                <small style="color: #f5c542; display: block;">Required for JWT login flow. Defaults to <code style="background:#1f1f1f; padding:2px 6px; border-radius:4px;">http://localhost:8080/sso/jwt/callback</code>.</small>
+                        <div class="nf-card" style="background: rgba(229,9,20,0.06); border: 1px solid rgba(229,9,20,0.35); padding: 16px; margin-bottom: 16px;">
+                            <div style="font-weight: 600; color: #fff; margin-bottom: 12px;">JWT Login Flow (Required for SSO)</div>
+
+                            <div style="display: flex; flex-direction: column; gap: 16px;">
+                                <div>
+                                    <label>SSO URL *</label>
+                                    <input type="text" id="newJwtSsoUrl" placeholder="https://kanna.xecurify.com/moas/idp/jwtsso/379412" style="width: 100%;">
+                                </div>
+                                <div>
+                                    <label>Client ID *</label>
+                                    <input type="text" id="newJwtClientId" placeholder="Paste JWT Client ID" style="width: 100%;">
+                                </div>
+                                <div>
+                                    <label>Client Secret</label>
+                                    <input type="password" id="newJwtClientSecret" placeholder="Paste JWT Client Secret" style="width: 100%;">
+                                </div>
+                                <div>
+                                    <label>Redirect URI (Callback URL)</label>
+                                    <input type="text" id="newJwtRedirectUri" placeholder="http://localhost:8080/sso/jwt/callback" style="width: 100%;">
+                                    <small style="color: #888; display: block; margin-top: 4px;">Defaults to `<code style="background:#1f1f1f; padding:2px 6px; border-radius:4px;">/sso/jwt/callback</code>`.</small>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="nf-card" style="padding: 16px; background: rgba(255,255,255,0.02); border: 1px dashed #333; margin-bottom: 16px;">
-                        <div style="font-weight: 600; color: #fff; margin-bottom: 12px;">Optional: Certificate for Token Verification</div>
-                        <textarea id="newJwtCertificate" rows="4" placeholder="-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"></textarea>
-                        <div style="display: flex; gap: 12px; align-items: center; margin-top: 12px;">
-                            <button type="button" class="nf-button nf-secondary" onclick="document.getElementById('newJwtCertUpload').click()">Upload Certificate</button>
-                            <input id="newJwtCertUpload" type="file" accept=".pem,.crt" style="display:none" onchange="uploadJwtCertificateModal(this)">
-                            <small style="color: #888;">Upload a PEM certificate to validate JWT signatures. If omitted, tokens will be accepted without signature verification.</small>
-                        </div>
-                    </div>
-
-                    <div class="nf-card" style="padding: 16px; background: rgba(255,255,255,0.02); border: 1px dashed #333;">
-                        <div style="font-weight: 600; color: #fff; margin-bottom: 12px;">Optional: Additional JWT Settings (for Testing/API)</div>
-                        <div style="display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
-                            <div>
-                                <label>JWKS URI</label>
-                                <input type="text" id="newJwtJwksUri" placeholder="https://example.com/.well-known/jwks.json">
-                            </div>
-                            <div>
-                                <label>Issuer</label>
-                                <input type="text" id="newJwtIssuer" placeholder="Enter expected issuer">
-                            </div>
-                            <div>
-                                <label>Audience</label>
-                                <input type="text" id="newJwtAudience" placeholder="Enter audience claim">
-                            </div>
-                            <div>
-                                <label>Header Name</label>
-                                <input type="text" id="newJwtHeaderName" placeholder="Authorization">
+                        <div class="nf-card" style="padding: 16px; background: rgba(255,255,255,0.02); border: 1px dashed #333; margin-bottom: 16px;">
+                            <div style="font-weight: 600; color: #fff; margin-bottom: 12px;">Optional: Certificate for Token Verification</div>
+                            <label>Verification Certificate (PEM)</label>
+                            <textarea id="newJwtCertificate" rows="4" placeholder="-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----" style="width: 100%;"></textarea>
+                            <div style="display: flex; gap: 12px; align-items: center; margin-top: 12px;">
+                                <button type="button" class="nf-button nf-secondary" onclick="document.getElementById('newJwtCertUpload').click()">Upload Certificate</button>
+                                <input id="newJwtCertUpload" type="file" accept=".pem,.crt" style="display:none" onchange="uploadJwtCertificateModal(this)">
+                                <small style="color: #888;">Upload a PEM certificate to validate JWT signatures.</small>
                             </div>
                         </div>
-                        <small style="color: #888; display: block; margin-top: 12px;">These settings control how incoming JWT tokens are validated when using API-based authentication flows.</small>
+
+                        <div class="nf-card" style="padding: 16px; background: rgba(255,255,255,0.02); border: 1px dashed #333;">
+                            <div style="font-weight: 600; color: #fff; margin-bottom: 12px;">Optional: Additional JWT Settings (for API/Token Validation)</div>
+
+                            <div style="display: flex; flex-direction: column; gap: 16px;">
+                                <div>
+                                    <label>JWKS URI</label>
+                                    <input type="text" id="newJwtJwksUri" placeholder="https://example.com/.well-known/jwks.json" style="width: 100%;">
+                                </div>
+                                <div>
+                                    <label>Issuer</label>
+                                    <input type="text" id="newJwtIssuer" placeholder="Enter expected issuer (iss)" style="width: 100%;">
+                                </div>
+                                <div>
+                                    <label>Audience</label>
+                                    <input type="text" id="newJwtAudience" placeholder="Enter audience claim (aud)" style="width: 100%;">
+                                </div>
+                                <div>
+                                    <label>Header Name</label>
+                                    <input type="text" id="newJwtHeaderName" placeholder="Authorization" style="width: 100%;">
+                                </div>
+                            </div>
+                            <small style="color: #888; display: block; margin-top: 12px;">These settings control validation for API-based JWT tokens.</small>
+                        </div>
                     </div>
                 </div>
+
 
                 <div class="nf-actions" style="margin-top: 8px; padding-top: 20px; border-top: 1px solid #333; display: flex; justify-content: flex-end; gap: 12px;">
                     <button type="button" class="nf-button nf-secondary" onclick="closeAddProviderModal()">Close</button>
@@ -441,7 +611,7 @@
 
 <script>
     const companyName = '[[${company}]]';
-    
+
     function openAddProviderModal() {
         document.getElementById('addSsoModal').style.display = 'flex';
         document.getElementById('modalTitle').textContent = 'Add SSO Provider';
@@ -455,17 +625,17 @@
             if (el) el.value = '';
         });
     }
-    
+
     function closeAddProviderModal() {
         document.getElementById('addSsoModal').style.display = 'none';
     }
-    
+
     function onProviderTypeChange(type) {
-        document.getElementById('newOidcFields').style.display = type === 'OIDC' ? 'block' : 'none';
-        document.getElementById('newSamlFields').style.display = type === 'SAML' ? 'block' : 'none';
-        document.getElementById('newJwtFields').style.display = type === 'JWT' ? 'block' : 'none';
+        document.getElementById('newOidcFields').style.display = type === 'OIDC' ? 'flex' : 'none';
+        document.getElementById('newSamlFields').style.display = type === 'SAML' ? 'flex' : 'none';
+        document.getElementById('newJwtFields').style.display = type === 'JWT' ? 'flex' : 'none';
     }
-    
+
     async function loadProviders() {
         const tbody = document.querySelector('#providersTable tbody');
         tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">Loading...</td></tr>';
@@ -501,20 +671,20 @@
             tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #b81d24; padding: 20px;">Error: ${e.message}</td></tr>`;
         }
     }
-    
+
     async function saveProvider(event) {
         event.preventDefault();
         const id = document.getElementById('saveProviderId').value;
         const type = document.getElementById('newProviderType').value;
         const name = document.getElementById('newProviderName').value.trim();
-        
+
         if (!type || !name) {
             alert('Provider name and type are required');
             return;
         }
-        
+
         const body = { name, type };
-        
+
         // Add protocol-specific fields
         if (type === 'OIDC') {
             body.oidcClientId = document.getElementById('newOidcClientId').value || '';
@@ -543,17 +713,17 @@
             body.jwtHeaderName = document.getElementById('newJwtHeaderName').value || '';
             body.jwtCertificate = document.getElementById('newJwtCertificate').value || '';
         }
-        
+
         const url = id ? `/${companyName}/customer-admin/sso/providers/${id}` : `/${companyName}/customer-admin/sso/providers`;
         const method = id ? 'PUT' : 'POST';
-        
+
         try {
             const res = await fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
-            
+
             if (res.ok) {
                 const result = await res.json();
                 alert('Provider saved successfully');
@@ -568,7 +738,7 @@
             console.error('Provider save error:', e);
         }
     }
-    
+
     async function activateProvider(id) {
         const res = await fetch(`/${companyName}/customer-admin/sso/providers/${id}/activate`, { method: 'POST' });
         if (res.ok) {
@@ -577,7 +747,7 @@
             alert('Failed to activate provider');
         }
     }
-    
+
     async function deactivateProvider(id) {
         const res = await fetch(`/${companyName}/customer-admin/sso/providers/${id}/deactivate`, { method: 'POST' });
         if (res.ok) {
@@ -586,7 +756,7 @@
             alert('Failed to deactivate provider');
         }
     }
-    
+
     async function editProvider(id) {
         const res = await fetch(`/${companyName}/customer-admin/sso/providers/${id}`);
         if (!res.ok) {
@@ -594,7 +764,7 @@
             return;
         }
         const p = await res.json();
-        
+
         document.getElementById('addSsoModal').style.display = 'flex';
         document.getElementById('modalTitle').textContent = 'Edit SSO Provider';
         document.getElementById('saveProviderId').value = p.id;
@@ -602,7 +772,7 @@
         const normalizedType = p.type ? p.type.toUpperCase() : 'OIDC';
         document.getElementById('newProviderType').value = normalizedType;
         onProviderTypeChange(normalizedType);
-        
+
         if (normalizedType === 'OIDC') {
             document.getElementById('newOidcClientId').value = p.oidcClientId || '';
             document.getElementById('newOidcClientSecret').value = p.oidcClientSecret || '';
@@ -631,7 +801,7 @@
             document.getElementById('newJwtCertificate').value = p.jwtCertificate || '';
         }
     }
-    
+
     async function deleteProvider(id) {
         if (!confirm('Delete this provider?')) return;
         const res = await fetch(`/${companyName}/customer-admin/sso/providers/${id}`, { method: 'DELETE' });
@@ -641,11 +811,12 @@
             alert('Failed to delete provider');
         }
     }
-    
+
     async function testProvider(id) {
+        // Updated to use the new GET endpoint in CompanyAdminController
         window.location.href = `/${companyName}/customer-admin/sso/providers/${id}/test`;
     }
-    
+
     async function importOidcDiscoveryModal() {
         const url = document.getElementById('newOidcDiscoveryUrl').value.trim();
         if (!url) {
@@ -693,7 +864,7 @@
             alert('Error importing SAML metadata: ' + e.message);
         }
     }
-    
+
     async function importSamlMetadataFileModal(input) {
         if (!input.files || !input.files[0]) return;
         const formData = new FormData();
@@ -737,7 +908,7 @@
             input.value = '';
         });
     }
-    
+
     // Load providers on page load
     document.addEventListener('DOMContentLoaded', function() {
         loadProviders();

@@ -1,8 +1,309 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <title>Register</title>
+    <title>Register - Kanna.io</title>
     <link rel="stylesheet" th:href="@{/css/netflix.css}">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        
+        * {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0f0f0f 100%);
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(229, 9, 20, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(46, 204, 113, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 40% 20%, rgba(52, 152, 219, 0.08) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        .register-container {
+            position: relative;
+            z-index: 1;
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        
+        .register-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .register-header h1 {
+            font-size: 42px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #e50914 0%, #ff1744 50%, #ff6b6b 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: 0 0 12px 0;
+            letter-spacing: -1px;
+        }
+        
+        .register-header p {
+            color: #aaa;
+            font-size: 16px;
+            margin: 0;
+        }
+        
+        .tab-container {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 32px;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 6px;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .tab-button {
+            flex: 1;
+            padding: 14px 20px;
+            background: transparent;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+        
+        .tab-button.active {
+            background: linear-gradient(135deg, #e50914 0%, #ff1744 100%);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(229, 9, 20, 0.4);
+            transform: translateY(-2px);
+        }
+        
+        .tab-button:not(.active):hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+        }
+        
+        .form-card {
+            background: rgba(26, 26, 26, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            animation: slideUp 0.5s ease-out;
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .form-card label {
+            display: block;
+            color: #fff;
+            font-weight: 600;
+            margin-bottom: 10px;
+            font-size: 14px;
+            letter-spacing: 0.5px;
+        }
+        
+        .form-card input[type="text"],
+        .form-card input[type="email"],
+        .form-card input[type="password"],
+        .form-card textarea {
+            width: 100%;
+            padding: 14px 18px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: #fff;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+        }
+        
+        .form-card input:focus,
+        .form-card textarea:focus {
+            outline: none;
+            border-color: #e50914;
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 0 4px rgba(229, 9, 20, 0.1);
+        }
+        
+        .form-card textarea {
+            resize: vertical;
+            min-height: 100px;
+            font-family: inherit;
+        }
+        
+        .form-card small {
+            color: #888;
+            font-size: 13px;
+            display: block;
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+        
+        .alert {
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            font-weight: 500;
+            animation: slideDown 0.3s ease-out;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .alert-success {
+            background: linear-gradient(135deg, rgba(46, 204, 113, 0.2) 0%, rgba(39, 174, 96, 0.2) 100%);
+            border: 1px solid rgba(46, 204, 113, 0.3);
+            color: #2ecc71;
+        }
+        
+        .alert-error {
+            background: linear-gradient(135deg, rgba(229, 9, 20, 0.2) 0%, rgba(192, 57, 43, 0.2) 100%);
+            border: 1px solid rgba(229, 9, 20, 0.3);
+            color: #ff6b6b;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 32px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 16px 24px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            text-decoration: none;
+            text-align: center;
+            display: inline-block;
+            letter-spacing: 0.5px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #e50914 0%, #ff1744 100%);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(229, 9, 20, 0.4);
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(229, 9, 20, 0.6);
+        }
+        
+        .btn-primary:active:not(:disabled) {
+            transform: translateY(0);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+        }
+        
+        .password-strength {
+            margin-top: 12px;
+        }
+        
+        .strength-bar {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+        
+        .strength-fill {
+            height: 100%;
+            width: 0%;
+            transition: all 0.3s ease;
+            border-radius: 2px;
+        }
+        
+        .strength-label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .eye-toggle {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: transparent;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            font-size: 20px;
+            padding: 4px;
+            transition: color 0.2s;
+        }
+        
+        .eye-toggle:hover {
+            color: #fff;
+        }
+        
+        .input-wrapper {
+            position: relative;
+        }
+        
+        .warning-text {
+            color: #ff6b6b;
+            font-size: 13px;
+            margin-top: 8px;
+            display: none;
+        }
+    </style>
     <script>
         async function checkUsernameAvailabilityReg() {
             const usernameInput = document.getElementById('reg-username');
@@ -30,6 +331,7 @@
                 validateForm();
             }
         }
+        
         function scorePassword(pw) {
             if (!pw) return 0;
             let score = 0;
@@ -45,115 +347,431 @@
             score += Math.min(10, Math.floor(pw.length / 2) * 5);
             return Math.min(100, score);
         }
+        
         function updateStrength() {
-            const pw = document.getElementById('reg-password').value;
+            const pw = document.getElementById('reg-password')?.value || '';
             const bar = document.getElementById('pw-bar');
             const label = document.getElementById('pw-label');
+            if (!bar || !label) return;
             const score = scorePassword(pw);
             bar.style.width = `${score}%`;
-            if (score < 30) { bar.style.background = '#b81d24'; label.innerText = 'Weak'; }
-            else if (score < 60) { bar.style.background = '#e67e22'; label.innerText = 'Medium'; }
-            else { bar.style.background = '#2ecc71'; label.innerText = 'Strong'; }
+            if (score < 30) { 
+                bar.style.background = '#e50914'; 
+                label.innerText = 'Weak';
+                label.style.color = '#e50914';
+            } else if (score < 60) { 
+                bar.style.background = '#f39c12'; 
+                label.innerText = 'Medium';
+                label.style.color = '#f39c12';
+            } else { 
+                bar.style.background = '#2ecc71'; 
+                label.innerText = 'Strong';
+                label.style.color = '#2ecc71';
+            }
             validateForm();
         }
+        
         function togglePassword(id, eyeId) {
             const input = document.getElementById(id);
             const eye = document.getElementById(eyeId);
-            if (input.type === 'password') { input.type = 'text'; eye.innerText = '🙈'; }
-            else { input.type = 'password'; eye.innerText = '👁️'; }
+            if (input.type === 'password') { 
+                input.type = 'text'; 
+                eye.innerText = '🙈'; 
+            } else { 
+                input.type = 'password'; 
+                eye.innerText = '👁️'; 
+            }
         }
-        function validateForm() {
-            const username = document.getElementById('reg-username').value.trim();
-            const email = document.getElementById('reg-email').value.trim();
-            const pw = document.getElementById('reg-password').value;
-            const cpw = document.getElementById('reg-confirm').value;
-            const warnUser = document.getElementById('reg-username-warn');
-            const warnCpw = document.getElementById('reg-confirm-warn');
-            const submitBtn = document.getElementById('reg-submit');
+        
+        async function checkTenantName() {
+            const companyInput = document.getElementById('admin-company');
+            const warn = document.getElementById('admin-company-warn');
+            if (!companyInput || !warn) return;
             
-            // Username validation: lowercase only, min 4 chars
-            const usernameLower = username.toLowerCase();
-            const usernameValid = username.length >= 4 && /^[a-z0-9_]+$/.test(username) && username === usernameLower;
-            if (username && !usernameValid) {
-                warnUser.innerText = 'Username must be lowercase, at least 4 characters, and contain only letters, numbers, and underscores.';
-                warnUser.style.display = 'block';
+            const companyName = companyInput.value.trim();
+            if (!companyName || companyName.length < 2) {
+                warn.style.display = 'none';
+                validateForm();
+                return;
             }
             
-            // Password validation: 6-10 characters
-            const pwValid = !pw || (pw.length >= 6 && pw.length <= 10);
-            const pwWarn = document.getElementById('reg-password-warn');
-            if (!pwWarn) {
-                const pwWarnEl = document.createElement('div');
-                pwWarnEl.id = 'reg-password-warn';
-                pwWarnEl.style.display = 'none';
-                pwWarnEl.style.color = '#e74c3c';
-                pwWarnEl.style.marginTop = '6px';
-                document.getElementById('reg-password').parentElement.parentElement.appendChild(pwWarnEl);
+            try {
+                const res = await fetch(`/api/users/tenants/exists?tenantName=${encodeURIComponent(companyName)}`);
+                const data = await res.json();
+                if (data.exists) {
+                    warn.innerText = '⚠️ A company with this name already exists. Please use a different company name.';
+                    warn.style.display = 'block';
+                    warn.style.color = '#ff6b6b';
+                } else {
+                    warn.style.display = 'none';
+                }
+                validateForm();
+            } catch (e) {
+                warn.style.display = 'none';
+                validateForm();
             }
-            const pwWarnEl = document.getElementById('reg-password-warn');
-            if (pw && !pwValid) {
-                pwWarnEl.innerText = 'Password must be between 6 and 10 characters.';
-                pwWarnEl.style.display = 'block';
+        }
+        
+        let debounceTenant;
+        function onCompanyInput() {
+            clearTimeout(debounceTenant);
+            debounceTenant = setTimeout(checkTenantName, 300);
+        }
+        
+        async function checkAdminUsername() {
+            const usernameInput = document.getElementById('admin-username');
+            const warn = document.getElementById('admin-username-warn');
+            if (!usernameInput || !warn) return;
+            
+            const username = usernameInput.value.trim().toLowerCase();
+            if (!username || username.length < 4) {
+                warn.style.display = 'none';
+                validateForm();
+                return;
+            }
+            
+            // Validate format
+            if (!/^[a-z0-9_]+$/.test(username)) {
+                warn.innerText = 'Username must be lowercase and contain only letters, numbers, and underscores.';
+                warn.style.display = 'block';
+                warn.style.color = '#ff6b6b';
+                validateForm();
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/api/users/exists?username=${encodeURIComponent(username)}`);
+                const data = await res.json();
+                if (data.exists) {
+                    warn.innerText = '⚠️ Username already exists. Please choose another.';
+                    warn.style.display = 'block';
+                    warn.style.color = '#ff6b6b';
+                } else {
+                    warn.style.display = 'none';
+                }
+                validateForm();
+            } catch (e) {
+                warn.style.display = 'none';
+                validateForm();
+            }
+        }
+        
+        let debounceAdminUser;
+        function onUsernameInput() {
+            const usernameInput = document.getElementById('admin-username');
+            if (usernameInput) {
+                // Convert to lowercase
+                const current = usernameInput.value;
+                const lower = current.toLowerCase();
+                if (current !== lower) {
+                    usernameInput.value = lower;
+                }
+            }
+            clearTimeout(debounceAdminUser);
+            debounceAdminUser = setTimeout(checkAdminUsername, 300);
+            validateForm();
+        }
+        
+        function updateAdminPasswordStrength() {
+            const pw = document.getElementById('admin-password')?.value || '';
+            const bar = document.getElementById('admin-pw-bar');
+            const label = document.getElementById('admin-pw-label');
+            const warn = document.getElementById('admin-password-warn');
+            
+            if (!bar || !label) return;
+            
+            if (!pw) {
+                bar.style.width = '0%';
+                label.innerText = '';
+                if (warn) warn.style.display = 'none';
+                validateForm();
+                return;
+            }
+            
+            const score = scorePassword(pw);
+            bar.style.width = `${score}%`;
+            
+            if (pw.length < 6 || pw.length > 10) {
+                if (warn) {
+                    warn.innerText = 'Password must be between 6 and 10 characters.';
+                    warn.style.display = 'block';
+                    warn.style.color = '#ff6b6b';
+                }
             } else {
-                pwWarnEl.style.display = 'none';
+                if (warn) warn.style.display = 'none';
             }
+            
+            if (score < 30) { 
+                bar.style.background = '#e50914'; 
+                label.innerText = 'Weak';
+                label.style.color = '#e50914';
+            } else if (score < 60) { 
+                bar.style.background = '#f39c12'; 
+                label.innerText = 'Medium';
+                label.style.color = '#f39c12';
+            } else { 
+                bar.style.background = '#2ecc71'; 
+                label.innerText = 'Strong';
+                label.style.color = '#2ecc71';
+            }
+            validateForm();
+        }
+        
+        function validateForm() {
+            const formType = document.getElementById('form-enduser').style.display !== 'none' ? 'enduser' : 'admin';
+            
+            if (formType === 'enduser') {
+                const username = document.getElementById('reg-username').value.trim();
+                const email = document.getElementById('reg-email').value.trim();
+                const pw = document.getElementById('reg-password').value;
+                const cpw = document.getElementById('reg-confirm').value;
+                const warnUser = document.getElementById('reg-username-warn');
+                const warnCpw = document.getElementById('reg-confirm-warn');
+                const submitBtn = document.getElementById('reg-submit');
+                
+                const usernameLower = username.toLowerCase();
+                const usernameValid = username.length >= 4 && /^[a-z0-9_]+$/.test(username) && username === usernameLower;
+                if (username && !usernameValid) {
+                    warnUser.innerText = 'Username must be lowercase, at least 4 characters, and contain only letters, numbers, and underscores.';
+                    warnUser.style.display = 'block';
+                }
+                
+                const pwValid = !pw || (pw.length >= 6 && pw.length <= 10);
+                const pwWarn = document.getElementById('reg-password-warn');
+                if (pwWarn) {
+                    if (pw && !pwValid) {
+                        pwWarn.innerText = 'Password must be between 6 and 10 characters.';
+                        pwWarn.style.display = 'block';
+                    } else {
+                        pwWarn.style.display = 'none';
+                    }
+                }
+                
+                const emailOk = /.+@.+\..+/.test(email);
+                const cpwOk = pw && cpw && pw === cpw;
+                warnCpw.style.display = cpw && !cpwOk ? 'block' : 'none';
+                
+                if (username && username !== usernameLower) {
+                    document.getElementById('reg-username').value = usernameLower;
+                }
+                
+                const ready = usernameValid && username.length >= 4 && emailOk && pwValid && cpwOk && warnUser.style.display !== 'block';
+                submitBtn.disabled = !ready;
+            } else {
+            // Admin request form validation
+            const firstName = document.getElementById('admin-firstname')?.value.trim();
+            const lastName = document.getElementById('admin-lastname')?.value.trim();
+            const email = document.getElementById('admin-email')?.value.trim();
+            const company = document.getElementById('admin-company')?.value.trim();
+            const username = document.getElementById('admin-username')?.value.trim();
+            const password = document.getElementById('admin-password')?.value;
+            const companyWarn = document.getElementById('admin-company-warn');
+            const usernameWarn = document.getElementById('admin-username-warn');
+            const passwordWarn = document.getElementById('admin-password-warn');
+            const submitBtn = document.getElementById('admin-submit');
             
             const emailOk = /.+@.+\..+/.test(email);
-            const cpwOk = pw && cpw && pw === cpw;
-            warnCpw.style.display = cpw && !cpwOk ? 'block' : 'none';
+            const companyWarnVisible = companyWarn && companyWarn.style.display === 'block';
+            const usernameWarnVisible = usernameWarn && usernameWarn.style.display === 'block';
+            const passwordWarnVisible = passwordWarn && passwordWarn.style.display === 'block';
             
-            // Convert username to lowercase before submit
-            if (username && username !== usernameLower) {
-                document.getElementById('reg-username').value = usernameLower;
+            // If username is provided, it must be valid
+            const usernameValid = !username || (username.length >= 4 && !usernameWarnVisible);
+            // If password is provided, it must be valid
+            const passwordValid = !password || (password.length >= 6 && password.length <= 10 && !passwordWarnVisible);
+            
+            const ready = firstName && lastName && emailOk && company && !companyWarnVisible && usernameValid && passwordValid;
+            if (submitBtn) {
+                submitBtn.disabled = !ready;
             }
-            
-            const ready = usernameValid && username.length >= 4 && emailOk && pwValid && cpwOk && warnUser.style.display !== 'block';
-            submitBtn.disabled = !ready;
+            }
         }
+        
         let debounceU;
-        function onUserInput() { clearTimeout(debounceU); debounceU = setTimeout(checkUsernameAvailabilityReg, 250); }
-        function onEmailInput() { validateForm(); }
-        function onConfirmInput() { validateForm(); }
-        function onLoadInit() { validateForm(); }
-        document.addEventListener('DOMContentLoaded', onLoadInit);
+        function onUserInput() { 
+            clearTimeout(debounceU); 
+            debounceU = setTimeout(checkUsernameAvailabilityReg, 250); 
+        }
+        
+        function switchTab(tab) {
+            const enduserTab = document.getElementById('tab-enduser');
+            const adminTab = document.getElementById('tab-admin');
+            const enduserForm = document.getElementById('form-enduser');
+            const adminForm = document.getElementById('form-admin');
+            
+            if (tab === 'enduser') {
+                enduserTab.classList.add('active');
+                adminTab.classList.remove('active');
+                enduserForm.style.display = 'block';
+                adminForm.style.display = 'none';
+            } else {
+                adminTab.classList.add('active');
+                enduserTab.classList.remove('active');
+                adminForm.style.display = 'block';
+                enduserForm.style.display = 'none';
+            }
+            validateForm();
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            validateForm();
+            // Add input listeners for admin form
+            ['admin-firstname', 'admin-lastname', 'admin-email'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('input', validateForm);
+                }
+            });
+            // Company name has its own handler for real-time validation
+        });
     </script>
 </head>
-<body class="nf-body">
-<div class="nf-header">Create your account</div>
-<div class="nf-container" style="max-width:520px;margin:auto;">
-    <div th:if="${error}" style="background:#b81d24;color:#fff;padding:10px 14px;border-radius:6px;margin-bottom:12px;">[[${error}]]</div>
-    <form class="nf-form" th:action="@{/register}" method="post" th:object="${user}">
-        <label>Username</label>
-        <input id="reg-username" type="text" th:field="*{username}" required oninput="onUserInput()" pattern="[a-z0-9_]{4,}" title="Username must be lowercase, at least 4 characters, letters/numbers/underscores only.">
-        <div id="reg-username-warn" style="display:none;color:#e74c3c;margin-top:6px;">Username already exists. Please choose another.</div>
-        <small style="color:#aaa; display:block; margin-top:4px;">Username must be lowercase, at least 4 characters, and contain only letters, numbers, and underscores.</small>
-
-        <label>Email</label>
-        <input id="reg-email" type="email" th:field="*{email}" required oninput="onEmailInput()">
-
-        <label>Password</label>
-        <div style="position:relative;">
-            <input id="reg-password" type="password" th:field="*{password}" required oninput="updateStrength()" minlength="6" maxlength="10" pattern=".{6,10}" title="Password must be between 6 and 10 characters.">
-            <button type="button" id="pw-eye" onclick="togglePassword('reg-password','pw-eye')" class="nf-eye">👁️</button>
+<body>
+<div class="register-container">
+    <div class="register-header">
+        <h1>Create Your Account</h1>
+        <p>Join thousands of users managing their SSO configurations</p>
+    </div>
+    
+    <div class="tab-container">
+        <button type="button" id="tab-enduser" class="tab-button active" onclick="switchTab('enduser')">
+            👤 End User Registration
+        </button>
+        <button type="button" id="tab-admin" class="tab-button" onclick="switchTab('admin')">
+            🔐 Request Admin Access
+        </button>
+    </div>
+    
+    <div th:if="${error}" class="alert alert-error">[[${error}]]</div>
+    <div th:if="${success}" class="alert alert-success">[[${success}]]</div>
+    
+    <!-- End User Registration Form -->
+    <form id="form-enduser" class="form-card" th:action="@{/register}" method="post" th:object="${user}">
+        <div>
+            <label>Username</label>
+            <input id="reg-username" type="text" th:field="*{username}" required oninput="onUserInput()" 
+                   pattern="[a-z0-9_]{4,}" placeholder="Enter your username">
+            <div id="reg-username-warn" class="warning-text"></div>
+            <small>Username must be lowercase, at least 4 characters, and contain only letters, numbers, and underscores.</small>
         </div>
-        <div class="nf-pw-meter"><div id="pw-bar" class="nf-pw-bar"></div></div>
-        <div id="pw-label" class="nf-pw-label">Weak</div>
-        <small style="color:#aaa; display:block; margin-top:4px;">Password must be between 6 and 10 characters.</small>
 
-        <label>Confirm Password</label>
-        <div style="position:relative;">
-            <input id="reg-confirm" type="password" required oninput="onConfirmInput()">
-            <button type="button" id="cpw-eye" onclick="togglePassword('reg-confirm','cpw-eye')" class="nf-eye">👁️</button>
+        <div style="margin-top: 20px;">
+            <label>Email</label>
+            <input id="reg-email" type="email" th:field="*{email}" required oninput="validateForm()" 
+                   placeholder="your.email@example.com">
         </div>
-        <div id="reg-confirm-warn" style="display:none;color:#e74c3c;margin-top:6px;">Passwords do not match.</div>
 
-        <label>Company Name *</label>
-        <input id="reg-company" type="text" name="companyName" th:value="${companyName}" required placeholder="Enter your company/organization name">
-        <small style="color:#aaa; display:block; margin-top:4px;">If your company already exists, you'll be added to it. Otherwise, a new company will be created by admin(Ph.no:9080531024).</small>
+        <div style="margin-top: 20px;">
+            <label>Password</label>
+            <div class="input-wrapper">
+                <input id="reg-password" type="password" th:field="*{password}" required 
+                       oninput="updateStrength()" minlength="6" maxlength="10" 
+                       pattern=".{6,10}" placeholder="Enter password (6-10 characters)">
+                <button type="button" id="pw-eye" onclick="togglePassword('reg-password','pw-eye')" 
+                        class="eye-toggle">👁️</button>
+            </div>
+            <div class="password-strength">
+                <div class="strength-bar">
+                    <div id="pw-bar" class="strength-fill"></div>
+                </div>
+                <div id="pw-label" class="strength-label">Weak</div>
+            </div>
+            <div id="reg-password-warn" class="warning-text"></div>
+            <small>Password must be between 6 and 10 characters.</small>
+        </div>
 
-        <div class="nf-actions">
-            <button id="reg-submit" class="nf-button" type="submit" disabled>Create Account</button>
-            <a class="nf-button nf-secondary" th:href="@{/login}">Back to Login</a>
+        <div style="margin-top: 20px;">
+            <label>Confirm Password</label>
+            <div class="input-wrapper">
+                <input id="reg-confirm" type="password" required oninput="validateForm()" 
+                       placeholder="Confirm your password">
+                <button type="button" id="cpw-eye" onclick="togglePassword('reg-confirm','cpw-eye')" 
+                        class="eye-toggle">👁️</button>
+            </div>
+            <div id="reg-confirm-warn" class="warning-text">Passwords do not match.</div>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <label>Company Name *</label>
+            <input id="reg-company" type="text" name="companyName" th:value="${companyName}" required 
+                   placeholder="Enter your company/organization name">
+            <small>If your company already exists, you'll be added to it. Otherwise, a new company will be created by admin.</small>
+        </div>
+
+        <div class="form-actions">
+            <button id="reg-submit" class="btn btn-primary" type="submit" disabled>Create Account</button>
+            <a class="btn btn-secondary" th:href="@{/login}">Back to Login</a>
+        </div>
+    </form>
+    
+    <!-- Customer Admin Request Form -->
+    <form id="form-admin" class="form-card" style="display: none;" th:action="@{/register/admin-request}" method="post">
+        <div>
+            <label>First Name *</label>
+            <input id="admin-firstname" type="text" name="firstName" required 
+                   placeholder="Enter your first name">
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <label>Last Name *</label>
+            <input id="admin-lastname" type="text" name="lastName" required 
+                   placeholder="Enter your last name">
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <label>Email *</label>
+            <input id="admin-email" type="email" name="email" required 
+                   placeholder="your.email@example.com">
+            <small>We'll send you a notification when your request is reviewed. Same email can be used by multiple users.</small>
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <label>Username (Optional)</label>
+            <div class="input-wrapper">
+                <input id="admin-username" type="text" name="username" 
+                       oninput="onUsernameInput()" placeholder="Enter your preferred username">
+            </div>
+            <div id="admin-username-warn" class="warning-text"></div>
+            <small>If not provided, a username will be generated from your email. Must be lowercase, 4+ characters, letters/numbers/underscores only.</small>
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <label>Password (Optional)</label>
+            <div class="input-wrapper">
+                <input id="admin-password" type="password" name="password" 
+                       oninput="updateAdminPasswordStrength()" minlength="6" maxlength="10" 
+                       placeholder="Enter your preferred password (6-10 characters)">
+                <button type="button" id="admin-pw-eye" onclick="togglePassword('admin-password','admin-pw-eye')" 
+                        class="eye-toggle">👁️</button>
+            </div>
+            <div class="password-strength">
+                <div class="strength-bar">
+                    <div id="admin-pw-bar" class="strength-fill"></div>
+                </div>
+                <div id="admin-pw-label" class="strength-label">Weak</div>
+            </div>
+            <div id="admin-password-warn" class="warning-text"></div>
+            <small>If not provided, a random password will be generated and sent via email.</small>
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <label>Company Name *</label>
+            <input id="admin-company" type="text" name="companyName" required 
+                   oninput="onCompanyInput()" placeholder="Enter your company/organization name">
+            <div id="admin-company-warn" class="warning-text"></div>
+            <small>The company name for which you want admin access. This name must be unique.</small>
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <label>Message (Optional)</label>
+            <textarea name="message" rows="4" 
+                      placeholder="Tell us why you need admin access..."></textarea>
+            <small>Any additional information you'd like to provide.</small>
+        </div>
+        
+        <div class="form-actions">
+            <button id="admin-submit" class="btn btn-primary" type="submit">Submit Request</button>
+            <a class="btn btn-secondary" th:href="@{/login}">Back to Login</a>
         </div>
     </form>
 </div>

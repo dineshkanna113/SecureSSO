@@ -2,6 +2,7 @@ package com.example.finalsso.controller;
 
 import com.example.finalsso.entity.SSOProvider;
 import com.example.finalsso.entity.User;
+import com.example.finalsso.service.UserCompanyMapper;
 import com.example.finalsso.repository.SSOProviderRepository;
 import com.example.finalsso.repository.UserRepository;
 import org.springframework.stereotype.Controller;
@@ -28,11 +29,13 @@ public class SsoJwtController {
 
     private final SSOProviderRepository providerRepository;
     private final UserRepository userRepository;
+    private final UserCompanyMapper userCompanyMapper;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public SsoJwtController(SSOProviderRepository providerRepository, UserRepository userRepository) {
+    public SsoJwtController(SSOProviderRepository providerRepository, UserRepository userRepository, UserCompanyMapper userCompanyMapper) {
         this.providerRepository = providerRepository;
         this.userRepository = userRepository;
+        this.userCompanyMapper = userCompanyMapper;
     }
 
     @GetMapping("/sso/jwt/authenticate")
@@ -69,9 +72,33 @@ public class SsoJwtController {
         }
 
         String baseUrl = request.getRequestURL().toString().replace(request.getRequestURI(), "");
+        
+        // Extract company from session or provider's tenant
+        String company = null;
+        if (session != null) {
+            company = (String) session.getAttribute("sso_test_company");
+        }
+        if (company == null && provider.getTenant() != null) {
+            company = provider.getTenant().getTenantName();
+            if (company != null) {
+                company = company.toLowerCase().replaceAll("[^a-z0-9]+", "-").replaceAll("^-+", "").replaceAll("-+$", "");
+            }
+        }
+        
+        // Use provider's configured redirect URI, or default to company-specific callback
         String redirectUri = provider.getJwtRedirectUri();
-        if (redirectUri == null || redirectUri.isEmpty()) {
-            redirectUri = baseUrl + "/sso/jwt/callback";
+        if (redirectUri == null || redirectUri.trim().isEmpty()) {
+            if (company != null) {
+                redirectUri = baseUrl + "/" + company + "/sso/jwt/callback";
+            } else {
+                redirectUri = baseUrl + "/sso/jwt/callback";
+            }
+        } else {
+            redirectUri = redirectUri.trim();
+            // If relative, make it absolute
+            if (redirectUri.startsWith("/")) {
+                redirectUri = baseUrl + redirectUri;
+            }
         }
 
         String clientId = provider.getJwtClientId();
@@ -94,9 +121,10 @@ public class SsoJwtController {
         return "redirect:" + redirect;
     }
 
-    @GetMapping("/sso/jwt/callback")
-    @PostMapping("/sso/jwt/callback")
-    public String callback(@RequestParam(required = false) String token,
+    @GetMapping({"/sso/jwt/callback", "/{company}/sso/jwt/callback"})
+    @PostMapping({"/sso/jwt/callback", "/{company}/sso/jwt/callback"})
+    public String callback(@org.springframework.web.bind.annotation.PathVariable(required = false) String company,
+            @RequestParam(required = false) String token,
             @RequestParam(required = false) String jwt,
             @RequestParam(required = false) String id_token,
             @RequestParam(required = false) String access_token,
@@ -178,15 +206,7 @@ public class SsoJwtController {
             Map<String, Object> claims = objectMapper.readValue(payloadJson, 
                 new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
 
-            // Check if this is a test flow
-            boolean isTest = Boolean.TRUE.equals(request.getSession(false).getAttribute("jwt_test"));
-            if (isTest) {
-                request.getSession(false).setAttribute("jwt_test_result", claims);
-                request.getSession(false).removeAttribute("jwt_test");
-                return "redirect:/test/jwt/result";
-            }
-
-            // Extract username/email from claims
+            // Extract username/email from claims first (needed for both test and normal flow)
             String username = null;
             if (claims.containsKey("email")) {
                 username = String.valueOf(claims.get("email"));
@@ -202,6 +222,30 @@ public class SsoJwtController {
                 username = "jwt_user_" + java.util.UUID.randomUUID().toString().substring(0, 8);
             }
 
+            // Check if this is a test flow
+            javax.servlet.http.HttpSession session = request.getSession(false);
+            boolean isTest = session != null && Boolean.TRUE.equals(session.getAttribute("jwt_test"));
+            if (isTest && session != null) {
+                String testCompany = (String) session.getAttribute("sso_test_company");
+                if (testCompany != null) {
+                    company = testCompany;
+                }
+                java.util.Map<String,String> attrMap = new java.util.LinkedHashMap<>();
+                claims.forEach((k, v) -> attrMap.put(k, v != null ? String.valueOf(v) : ""));
+                session.setAttribute("test_success", true);
+                session.setAttribute("test_protocol", "JWT");
+                session.setAttribute("test_nameId", username);
+                session.setAttribute("test_attributes", attrMap);
+                session.removeAttribute("jwt_test");
+                session.removeAttribute("jwt_test_provider_id");
+                session.removeAttribute("sso_test");
+                if (company != null) {
+                    return "redirect:/" + company + "/customer-admin/dashboard?test=success";
+                }
+                request.setAttribute("jwt_test_result", claims);
+                return "redirect:/test/jwt/result";
+            }
+
             // Authenticate user - get user's actual role from database
             String userRole = "ROLE_END_USER"; // Default role
             User dbUser = userRepository.findByUsername(username).orElse(null);
@@ -212,7 +256,9 @@ public class SsoJwtController {
                     Collections.singletonList(new SimpleGrantedAuthority(userRole)));
             SecurityContextHolder.getContext().setAuthentication(auth);
 
-            return "redirect:/user/dashboard";
+            // Get redirect path based on user role and company
+            String redirectPath = userCompanyMapper.getRedirectPath(username);
+            return "redirect:" + redirectPath;
         } catch (Exception e) {
             e.printStackTrace();
             return "redirect:/login?error=callback_error";
@@ -323,7 +369,9 @@ public class SsoJwtController {
             request.getSession(false).removeAttribute("jwt_provider_id");
             request.getSession(false).removeAttribute("jwt_login");
 
-            return "redirect:/user/dashboard";
+            // Get redirect path based on user role and company
+            String redirectPath = userCompanyMapper.getRedirectPath(username);
+            return "redirect:" + redirectPath;
         } catch (Exception e) {
             e.printStackTrace();
             model.addAttribute("error", "Error processing JWT: " + e.getMessage());

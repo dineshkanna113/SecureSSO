@@ -3,6 +3,7 @@ package com.example.finalsso.controller;
 import com.example.finalsso.entity.SSOConfig;
 import com.example.finalsso.entity.SSOProvider;
 import com.example.finalsso.entity.User;
+import com.example.finalsso.service.UserCompanyMapper;
 import com.example.finalsso.repository.SSOProviderRepository;
 import com.example.finalsso.repository.UserRepository;
 import com.example.finalsso.service.SSOConfigService;
@@ -37,12 +38,14 @@ public class SsoOAuthController {
 	private final SSOConfigService cfgService;
 	private final SSOProviderRepository providerRepository;
 	private final UserRepository userRepository;
+	private final UserCompanyMapper userCompanyMapper;
 	private final RestTemplate restTemplate = new RestTemplate();
 
-	public SsoOAuthController(SSOConfigService cfgService, SSOProviderRepository providerRepository, UserRepository userRepository) {
+	public SsoOAuthController(SSOConfigService cfgService, SSOProviderRepository providerRepository, UserRepository userRepository, UserCompanyMapper userCompanyMapper) {
 		this.cfgService = cfgService;
 		this.providerRepository = providerRepository;
 		this.userRepository = userRepository;
+		this.userCompanyMapper = userCompanyMapper;
 	}
 
 	@GetMapping("/sso/oauth2/authorize")
@@ -109,9 +112,27 @@ public class SsoOAuthController {
 			baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
 		}
 		
+		// Extract company from session or provider's tenant
+		String company = null;
+		HttpSession session = request.getSession(false);
+		if (session != null) {
+			company = (String) session.getAttribute("sso_test_company");
+		}
+		if (company == null && provider.getTenant() != null) {
+			company = provider.getTenant().getTenantName();
+			if (company != null) {
+				company = company.toLowerCase().replaceAll("[^a-z0-9]+", "-").replaceAll("^-+", "").replaceAll("-+$", "");
+			}
+		}
+		
+		// Build company-specific redirect URI
 		String redirectUri = provider.getOidcRedirectUri();
 		if (redirectUri == null || redirectUri.trim().isEmpty()) {
-			redirectUri = baseUrl + "/sso/oauth2/callback";
+			if (company != null) {
+				redirectUri = baseUrl + "/" + company + "/sso/oauth2/callback";
+			} else {
+				redirectUri = baseUrl + "/sso/oauth2/callback";
+			}
 		} else {
 			redirectUri = redirectUri.trim(); // Remove leading/trailing spaces
 			// If redirect URI is relative, make it absolute
@@ -120,18 +141,25 @@ public class SsoOAuthController {
 			}
 			// Validate that redirect URI is for our application, not miniOrange
 			if (redirectUri.contains("xecurify.com") || redirectUri.contains("miniorange")) {
-				// Reset to default if it points to miniOrange
-				redirectUri = baseUrl + "/sso/oauth2/callback";
+				// Reset to company-specific default if it points to miniOrange
+				if (company != null) {
+					redirectUri = baseUrl + "/" + company + "/sso/oauth2/callback";
+				} else {
+					redirectUri = baseUrl + "/sso/oauth2/callback";
+				}
 			}
 		}
 		
 		String state = UUID.randomUUID().toString();
 		String nonce = UUID.randomUUID().toString();
-		HttpSession session = request.getSession(true);
-		session.setAttribute("oauth_state", state);
-		session.setAttribute("oauth_nonce", nonce);
+		HttpSession session2 = request.getSession(true);
+		session2.setAttribute("oauth_state", state);
+		session2.setAttribute("oauth_nonce", nonce);
 		if (finalProviderId != null) {
-			session.setAttribute("oidc_provider_id", finalProviderId);
+			session2.setAttribute("oidc_provider_id", finalProviderId);
+		}
+		if (company != null) {
+			session2.setAttribute("sso_test_company", company);
 		}
 		
 		// Ensure scope starts with "openid" for OIDC compliance
@@ -229,8 +257,9 @@ public class SsoOAuthController {
 		return "redirect:" + url;
 	}
 
-	@GetMapping("/sso/oauth2/callback")
-	public String callback(@RequestParam(required = false) String code,
+	@GetMapping({"/sso/oauth2/callback", "/{company}/sso/oauth2/callback"})
+	public String callback(@org.springframework.web.bind.annotation.PathVariable(required = false) String company,
+			@RequestParam(required = false) String code,
 			@RequestParam(required = false) String state,
 			@RequestParam(required = false) String error,
 			HttpServletRequest request,
@@ -281,17 +310,47 @@ public class SsoOAuthController {
 				}
 			}
 			
-			// For IdP-initiated flows, find active provider by matching redirect URI
+			// Extract company from path if not already set
+			String extractedCompany = company;
+			if (extractedCompany == null) {
+				String path = request.getRequestURI();
+				if (path.contains("/sso/oauth2/callback")) {
+					String[] parts = path.split("/");
+					for (int i = 0; i < parts.length; i++) {
+						if (parts[i].equals("sso") && i > 0) {
+							extractedCompany = parts[i - 1];
+							break;
+						}
+					}
+				}
+			}
+			final String finalCompany = extractedCompany; // Make final for lambda usage
+			
+			// For IdP-initiated flows, find active provider by matching redirect URI and company
 			if (provider == null && isIdpInitiated) {
 				String currentCallbackUrl = request.getRequestURL().toString();
+				String baseUrl = request.getRequestURL().toString().replace(request.getRequestURI(), "");
 				// Try to find active OIDC provider that matches this callback URL
 				provider = providerRepository.findAll().stream()
 					.filter(p -> p.isActive() && "OIDC".equalsIgnoreCase(p.getType()))
 					.filter(p -> {
-						String baseUrl = request.getRequestURL().toString().replace(request.getRequestURI(), "");
+						// Match by company/tenant
+						if (finalCompany != null && p.getTenant() != null) {
+							String tenantSlug = p.getTenant().getTenantName();
+							if (tenantSlug != null) {
+								tenantSlug = tenantSlug.toLowerCase().replaceAll("[^a-z0-9]+", "-").replaceAll("^-+", "").replaceAll("-+$", "");
+								if (!finalCompany.equals(tenantSlug)) {
+									return false;
+								}
+							}
+						}
 						String redirectUri = p.getOidcRedirectUri();
 						if (redirectUri == null || redirectUri.trim().isEmpty()) {
-							redirectUri = baseUrl + "/sso/oauth2/callback";
+							if (finalCompany != null) {
+								redirectUri = baseUrl + "/" + finalCompany + "/sso/oauth2/callback";
+							} else {
+								redirectUri = baseUrl + "/sso/oauth2/callback";
+							}
 						} else {
 							redirectUri = redirectUri.trim();
 							if (redirectUri.startsWith("/")) {
@@ -460,16 +519,22 @@ public class SsoOAuthController {
 
 			// Check if this is a test flow
 			boolean isTest = session != null && Boolean.TRUE.equals(session.getAttribute("oidc_test"));
-			if (isTest) {
-				// Store test results in session and show result page
-				request.setAttribute("testSuccess", true);
-				request.setAttribute("testProtocol", "OIDC");
-				request.setAttribute("nameId", username);
-				request.setAttribute("attributes", ui);
-				// Clear test flags
-				if (session != null) {
-					session.removeAttribute("oidc_test");
-					session.removeAttribute("oidc_test_provider_id");
+			if (isTest && session != null) {
+				String testCompany = (String) session.getAttribute("sso_test_company");
+				final String testFinalCompany = testCompany != null ? testCompany : finalCompany; // Use test company or extracted company
+				java.util.Map<String,String> attrMap = new java.util.LinkedHashMap<>();
+				if (ui != null) {
+					ui.forEach((k, v) -> attrMap.put(k, v != null ? String.valueOf(v) : ""));
+				}
+				session.setAttribute("test_success", true);
+				session.setAttribute("test_protocol", "OIDC");
+				session.setAttribute("test_nameId", username);
+				session.setAttribute("test_attributes", attrMap);
+				session.removeAttribute("oidc_test");
+				session.removeAttribute("oidc_test_provider_id");
+				session.removeAttribute("sso_test");
+				if (testFinalCompany != null) {
+					return "redirect:/" + testFinalCompany + "/customer-admin/dashboard?test=success";
 				}
 				model.addAttribute("testProtocol", "OIDC");
 				model.addAttribute("nameId", username);
@@ -485,7 +550,10 @@ public class SsoOAuthController {
 			}
 			var auth = new UsernamePasswordAuthenticationToken(username, "N/A", Collections.singletonList(new SimpleGrantedAuthority(userRole)));
 			SecurityContextHolder.getContext().setAuthentication(auth);
-			return "redirect:/user/dashboard";
+			
+			// Get redirect path based on user role and company
+			String redirectPath = userCompanyMapper.getRedirectPath(username);
+			return "redirect:" + redirectPath;
 		} catch (Exception e) {
 			e.printStackTrace();
 			return "redirect:/login?error";

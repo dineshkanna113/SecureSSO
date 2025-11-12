@@ -138,26 +138,29 @@
         <div class="login-brand">
             <h1>Kanna.io</h1>
         </div>
-        
+
         <div th:if="${error}" class="login-error" th:text="${error}"></div>
         <div th:if="${message}" class="login-message" th:text="${message}"></div>
-        
+
         <form class="login-form" th:action="@{/login/username}" method="post">
             <div class="input-focus-ring">
                 <label for="username">Username</label>
-                <input type="text" id="username" name="username" 
-                       placeholder="Enter your username" 
+                <input type="text" id="username" name="username"
+                       placeholder="Enter your username"
                        required autofocus autocomplete="username"
                        class="cursor-pulse">
             </div>
             <button type="submit" class="login-button">Continue</button>
         </form>
-        
+
         <div style="text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid #333;">
             <p style="color: #aaa; margin-bottom: 12px; font-size: 14px;">Don't have an account?</p>
             <a th:href="@{/register}" class="login-button" style="background-color: #333; display: inline-block; width: auto; padding: 12px 32px; text-decoration: none;">
                 Register
             </a>
+            <p style="color: #666; margin-top: 20px; font-size: 12px;">
+                Found a bug? <a th:href="@{/bug-report}" style="color: #e50914; text-decoration: none; font-weight: 600;">Report it here</a>.
+            </p>
         </div>
     </div>
 </div>
