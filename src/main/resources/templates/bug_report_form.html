@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Report a Bug - Kanna.io</title>
+    <link rel="stylesheet" th:href="@{/css/netflix.css}">
+    <style>
+        .report-container {
+            min-height: calc(100vh - 64px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(180deg, #141414 0%, #000 100%);
+        }
+        .report-card {
+            background: rgba(20, 20, 20, 0.95);
+            padding: 40px;
+            border-radius: 12px;
+            border: 1px solid #333;
+            max-width: 600px;
+            width: 90%;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+        .report-card h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #fff;
+            margin: 0 0 16px 0;
+        }
+        .report-card p {
+            color: #aaa;
+            margin-bottom: 24px;
+        }
+        .report-form label {
+            display: block;
+            margin-top: 16px;
+            color: #bbb;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .report-form input[type="text"],
+        .report-form input[type="email"],
+        .report-form textarea {
+            width: 100%;
+            padding: 12px 16px;
+            margin-top: 8px;
+            background-color: #1e1e1e;
+            border: 1px solid #333;
+            color: #fff;
+            border-radius: 6px;
+            font-size: 16px;
+            outline: none;
+            box-sizing: border-box;
+        }
+        .report-form textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+        .report-button {
+            width: 100%;
+            background-color: #e50914;
+            border: none;
+            color: white;
+            padding: 14px;
+            text-decoration: none;
+            cursor: pointer;
+            border-radius: 6px;
+            margin-top: 32px;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .report-button:hover {
+            background-color: #f40612;
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body class="nf-body">
+<div class="nf-header">
+    <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="color: #e50914; font-size: 32px;">K</span>
+        <span style="font-size: 24px; font-weight: 600;">Kanna.io</span>
+    </div>
+    <div>
+        <a class="nf-button nf-secondary" th:href="@{/login}">Back to Login</a>
+    </div>
+</div>
+<div class="report-container">
+    <div class="report-card">
+        <h1>Report a Bug or Issue 🐛</h1>
+        <p>Use this form to report security vulnerabilities, application errors, or unexpected behavior. Your feedback helps us keep Kanna.io secure and reliable.</p>
+
+        <form class="report-form" th:action="@{/bug-report}" method="post">
+            <label for="reporterEmail">Your Email Address *</label>
+            <input type="email" id="reporterEmail" name="reporterEmail"
+                   placeholder="e.g., security-researcher@example.com"
+                   required>
+
+            <label for="issueSummary">Issue Summary *</label>
+            <input type="text" id="issueSummary" name="issueSummary"
+                   placeholder="e.g., XSS vulnerability on login page"
+                   required>
+
+            <label for="issueDescription">Detailed Description and Steps to Reproduce *</label>
+            <textarea id="issueDescription" name="issueDescription"
+                      placeholder="Please provide clear steps to reproduce the issue, including environment details (browser, URL, etc.)."
+                      required></textarea>
+
+            <button type="submit" class="report-button">Submit Bug Report</button>
+        </form>
+    </div>
+</div>
+</body>
+</html>

@@ -1,7 +1,9 @@
 package com.example.finalsso.controller;
 
 import com.example.finalsso.entity.User;
+import com.example.finalsso.entity.SSOProvider;
 import com.example.finalsso.repository.TenantRepository;
+import com.example.finalsso.repository.SSOProviderRepository;
 import com.example.finalsso.service.SSOConfigService;
 import com.example.finalsso.service.UserCompanyMapper;
 import com.example.finalsso.service.UserService;
@@ -11,6 +13,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpSession;
+import java.util.List;
 
 @Controller
 public class AuthController {
@@ -26,6 +29,12 @@ public class AuthController {
     
     @Autowired
     private TenantRepository tenantRepository;
+    
+    @Autowired
+    private SSOProviderRepository ssoProviderRepository;
+    
+    @Autowired
+    private com.example.finalsso.service.CustomerAdminRequestService customerAdminRequestService;
 
     @GetMapping("/register")
     public String registerPage(Model model) {
@@ -43,6 +52,27 @@ public class AuthController {
         } catch (IllegalArgumentException e) {
             model.addAttribute("user", user);
             model.addAttribute("companyName", companyName);
+            model.addAttribute("error", e.getMessage());
+            return "register";
+        }
+    }
+    
+    @PostMapping("/register/admin-request")
+    public String registerAdminRequest(@RequestParam String firstName,
+                                       @RequestParam String lastName,
+                                       @RequestParam String email,
+                                       @RequestParam String companyName,
+                                       @RequestParam(required = false) String username,
+                                       @RequestParam(required = false) String password,
+                                       @RequestParam(required = false) String message,
+                                       Model model) {
+        try {
+            customerAdminRequestService.createRequest(firstName, lastName, email, companyName, username, password, message);
+            model.addAttribute("user", new User());
+            model.addAttribute("success", "Your request has been submitted successfully. You will receive an email notification once it's reviewed.");
+            return "register";
+        } catch (IllegalArgumentException e) {
+            model.addAttribute("user", new User());
             model.addAttribute("error", e.getMessage());
             return "register";
         }
@@ -125,23 +155,37 @@ public class AuthController {
         }
         session.setAttribute("target_url", targetUrl);
         
-        // Get tenant-specific SSO config
+        // Get tenant-specific SSO config and providers
         if (userInfo.get().tenantId != null) {
             var tenantOpt = tenantRepository.findById(userInfo.get().tenantId);
             if (tenantOpt.isPresent()) {
-                com.example.finalsso.entity.SSOConfig ssoConfig = ssoConfigService.getByTenant(tenantOpt.get());
+                var tenant = tenantOpt.get();
+                com.example.finalsso.entity.SSOConfig ssoConfig = ssoConfigService.getByTenant(tenant);
                 model.addAttribute("ssoConfig", ssoConfig);
                 model.addAttribute("ssoEnabled", ssoConfig.isSsoEnabled());
                 model.addAttribute("ssoProtocol", ssoConfig.getActiveProtocol());
+                
+                // Get active SSO providers for this tenant
+                if (ssoConfig.isSsoEnabled()) {
+                    List<SSOProvider> providers = ssoProviderRepository.findByTenant(tenant).stream()
+                            .filter(SSOProvider::isActive)
+                            .collect(java.util.stream.Collectors.toList());
+                    model.addAttribute("ssoProviders", providers);
+                } else {
+                    model.addAttribute("ssoProviders", new java.util.ArrayList<>());
+                }
             } else {
                 model.addAttribute("ssoEnabled", false);
+                model.addAttribute("ssoProviders", new java.util.ArrayList<>());
             }
         } else {
             model.addAttribute("ssoEnabled", false);
+            model.addAttribute("ssoProviders", new java.util.ArrayList<>());
         }
         
         model.addAttribute("username", username);
         model.addAttribute("companyName", userInfo.get().companyDisplayName != null ? userInfo.get().companyDisplayName : userInfo.get().companySlug);
+        model.addAttribute("company", company);
         return "password";
     }
 

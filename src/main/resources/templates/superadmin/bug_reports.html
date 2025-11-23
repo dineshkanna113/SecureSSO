@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+	<title>Bug Reports - Super Admin</title>
+	<link rel="stylesheet" th:href="@{/css/netflix.css}">
+	<style>
+		.badge {
+			display: inline-block;
+			padding: 4px 8px;
+			border-radius: 999px;
+			font-size: 12px;
+			font-weight: 600;
+		}
+		.badge-open { background: #b81d24; color: #fff; }
+		.badge-resolved { background: #2ecc71; color: #111; }
+	</style>
+	</head>
+<body class="nf-body">
+<div class="nf-header">
+	<div style="display: flex; align-items: center; gap: 12px;">
+		<span style="color: #e50914; font-size: 32px;">k</span>
+		<span style="font-size: 24px; font-weight: 600;">Kanna.io - Super Admin Portal</span>
+	</div>
+	<div>
+		<a class="nf-button nf-secondary" th:href="@{/super-admin/dashboard}">Back to Dashboard</a>
+	</div>
+</div>
+
+<div class="nf-container">
+	<div style="margin-bottom: 24px;">
+		<h1 style="margin: 0 0 8px 0; font-size: 28px;">Bug Reports</h1>
+		<p style="color: #aaa; margin: 0;">Review, resolve, and delete reported issues.</p>
+	</div>
+
+	<div th:if="${success != null}" style="background:#2ecc71;color:#111;padding:12px 16px;border-radius:6px;margin-bottom:20px;">
+		<span th:text="${success}"></span>
+	</div>
+	<div th:if="${error != null}" style="background:#b81d24;color:#fff;padding:12px 16px;border-radius:6px;margin-bottom:20px;">
+		<span th:text="${error}"></span>
+	</div>
+
+	<table class="nf-table">
+		<thead>
+		<tr>
+			<th>ID</th>
+			<th>Summary</th>
+			<th>Reporter Email</th>
+			<th>Created</th>
+			<th>Status</th>
+			<th>Actions</th>
+		</tr>
+		</thead>
+		<tbody>
+		<tr th:if="${bugReports == null or bugReports.isEmpty()}">
+			<td colspan="6" style="text-align: center; color: #aaa;">No bug reports found.</td>
+		</tr>
+		<tr th:each="r : ${bugReports}">
+			<td th:text="${r.id}">1</td>
+			<td>
+				<div th:text="${r.summary}">Summary</div>
+				<div style="color:#aaa;font-size:12px;margin-top:4px;" th:text="${r.description}">Description</div>
+			</td>
+			<td th:text="${r.reporterEmail}">email@example.com</td>
+			<td th:text="${#temporals.format(r.createdAt, 'yyyy-MM-dd HH:mm')}">2025-01-01</td>
+			<td>
+				<span class="badge" th:classappend="${r.resolved}? ' badge-resolved' : ' badge-open'"
+				      th:text="${r.resolved}? 'Resolved' : 'Open'">Open</span>
+			</td>
+			<td>
+				<form th:if="${!r.resolved}" th:action="@{'/super-admin/bug-reports/' + ${r.id} + '/resolve'}" method="post" style="display:inline;">
+					<button class="nf-button" type="submit">Mark Done</button>
+				</form>
+				<form th:action="@{'/super-admin/bug-reports/' + ${r.id} + '/delete'}" method="post" style="display:inline;" onsubmit="return confirm('Delete this bug report?');">
+					<button class="nf-button nf-danger" type="submit">Delete</button>
+				</form>
+			</td>
+		</tr>
+		</tbody>
+	</table>
+</div>
+</body>
+</html>
+
+

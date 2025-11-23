@@ -3,6 +3,7 @@ package com.example.finalsso.controller;
 import com.example.finalsso.entity.SSOConfig;
 import com.example.finalsso.entity.User;
 import com.example.finalsso.service.SSOConfigService;
+import com.example.finalsso.service.UserCompanyMapper;
 import com.example.finalsso.repository.SSOProviderRepository;
 import com.example.finalsso.repository.UserRepository;
 import com.example.finalsso.entity.SSOProvider;
@@ -36,11 +37,13 @@ public class SsoSamlController {
     private final SSOConfigService cfgService;
     private final SSOProviderRepository providerRepository;
     private final UserRepository userRepository;
+    private final UserCompanyMapper userCompanyMapper;
 
-    public SsoSamlController(SSOConfigService cfgService, SSOProviderRepository providerRepository, UserRepository userRepository) {
+    public SsoSamlController(SSOConfigService cfgService, SSOProviderRepository providerRepository, UserRepository userRepository, UserCompanyMapper userCompanyMapper) {
         this.cfgService = cfgService;
         this.providerRepository = providerRepository;
         this.userRepository = userRepository;
+        this.userCompanyMapper = userCompanyMapper;
     }
 
 	@GetMapping("/sso/saml2/authenticate")
@@ -48,8 +51,30 @@ public class SsoSamlController {
         SSOConfig cfg = cfgService.get();
 
 		String baseUrl = request.getRequestURL().toString().replace(request.getRequestURI(), "");
-		String acsUrl = baseUrl + "/sso/saml2/acs";
+		// Check if we have tenant context from test or provider
+		HttpSession session = request.getSession(false);
+		String company = session != null ? (String) session.getAttribute("sso_test_company") : null;
+		// If company not in session, try to get from provider's tenant
+		if (company == null) {
+			// Try to get from provider if available
+			Long testProviderId = (Long) (session != null ? session.getAttribute("saml_test_provider_id") : null);
+			if (testProviderId != null) {
+				SSOProvider testProvider = providerRepository.findById(testProviderId).orElse(null);
+				if (testProvider != null && testProvider.getTenant() != null) {
+					company = testProvider.getTenant().getTenantName();
+					if (company != null) {
+						company = company.toLowerCase().replaceAll("[^a-z0-9]+", "-").replaceAll("^-+", "").replaceAll("-+$", "");
+					}
+				}
+			}
+		}
 		String spEntityId = baseUrl;
+		String acsUrl = baseUrl + "/sso/saml2/acs";
+		// If tenant-specific, include company in entity ID and ACS URL
+		if (company != null) {
+			spEntityId = baseUrl + "/" + company;
+			acsUrl = baseUrl + "/" + company + "/sso/saml2/acs";
+		}
         // Prefer selected test provider, then providerId param, otherwise an active SAML provider if available
         String idpEntityId;
         String idpSsoUrl;
@@ -78,8 +103,8 @@ public class SsoSamlController {
         }
 
 		String requestId = "_" + UUID.randomUUID().toString().replace("-", "");
-		HttpSession session = request.getSession(true);
-        session.setAttribute("saml_request_id", requestId);
+		HttpSession session2 = request.getSession(true);
+        session2.setAttribute("saml_request_id", requestId);
 
 		// Generate SAML AuthnRequest
 		String authnRequest = String.format(
@@ -109,7 +134,7 @@ public class SsoSamlController {
 
 		// Redirect to IdP
         String relay = requestId;
-        if (Boolean.TRUE.equals(session.getAttribute("saml_test"))) {
+        if (session != null && Boolean.TRUE.equals(session.getAttribute("saml_test"))) {
             relay = "TEST::" + requestId;
         }
         String redirectUrl = idpSsoUrl + (idpSsoUrl.contains("?") ? "&" : "?") + "SAMLRequest=" +
@@ -119,10 +144,26 @@ public class SsoSamlController {
 		return "redirect:" + redirectUrl;
 	}
 
-	@PostMapping("/sso/saml2/acs")
-	public String acs(@RequestParam(required = false) String SAMLResponse,
+	@PostMapping({"/sso/saml2/acs", "/{company}/sso/saml2/acs"})
+	public String acs(@org.springframework.web.bind.annotation.PathVariable(required = false) String company,
+			@RequestParam(required = false) String SAMLResponse,
 			@RequestParam(required = false) String RelayState,
 			HttpServletRequest request) {
+		// Extract company from path if not already set
+		String extractedCompany = company;
+		if (extractedCompany == null) {
+			String path = request.getRequestURI();
+			if (path.contains("/sso/saml2/acs")) {
+				String[] parts = path.split("/");
+				for (int i = 0; i < parts.length; i++) {
+					if (parts[i].equals("sso") && i > 0) {
+						extractedCompany = parts[i - 1];
+						break;
+					}
+				}
+			}
+		}
+		company = extractedCompany;
         try {
 			if (SAMLResponse == null || SAMLResponse.isEmpty()) {
 				return "redirect:/login?error";
@@ -161,14 +202,15 @@ public class SsoSamlController {
 				username = "saml_user_" + UUID.randomUUID().toString().substring(0, 8);
 			}
 
-            // If test flow, render result with attributes instead of authenticating
+            // If test flow, redirect back to company admin dashboard with test data in session
             HttpSession session = request.getSession(false);
             boolean isTest = session != null && Boolean.TRUE.equals(session.getAttribute("saml_test"));
-            if (isTest) {
-                request.setAttribute("testSuccess", true);
-                request.setAttribute("testProtocol", "SAML");
-                request.setAttribute("nameId", username);
-                // Simple attribute listing (name -> first value)
+            if (isTest && session != null) {
+                String testCompany = (String) session.getAttribute("sso_test_company");
+                if (testCompany != null) {
+                    company = testCompany;
+                }
+                // Store test result in session for modal display
                 java.util.Map<String,String> attrMap = new java.util.LinkedHashMap<>();
                 NodeList attrs = doc.getElementsByTagNameNS("urn:oasis:names:tc:SAML:2.0:assertion", "Attribute");
                 for (int i = 0; i < attrs.getLength(); i++) {
@@ -179,10 +221,17 @@ public class SsoSamlController {
                         attrMap.put(name, values.item(0).getTextContent());
                     }
                 }
-                request.setAttribute("attributes", attrMap);
-                // clear flags
+                session.setAttribute("test_success", true);
+                session.setAttribute("test_protocol", "SAML");
+                session.setAttribute("test_nameId", username);
+                session.setAttribute("test_attributes", attrMap);
+                // clear test flags
                 session.removeAttribute("saml_test");
                 session.removeAttribute("saml_test_provider_id");
+                session.removeAttribute("sso_test");
+                if (company != null) {
+                    return "redirect:/" + company + "/customer-admin/dashboard?test=success";
+                }
                 return "test_sso_result";
             }
 
@@ -196,7 +245,9 @@ public class SsoSamlController {
 					Collections.singletonList(new SimpleGrantedAuthority(userRole)));
 			SecurityContextHolder.getContext().setAuthentication(auth);
 
-			return "redirect:/user/dashboard";
+			// Get redirect path based on user role and company
+			String redirectPath = userCompanyMapper.getRedirectPath(username);
+			return "redirect:" + redirectPath;
 		} catch (Exception e) {
 			e.printStackTrace();
 			return "redirect:/login?error";

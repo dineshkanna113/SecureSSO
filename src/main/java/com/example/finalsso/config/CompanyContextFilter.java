@@ -43,11 +43,18 @@ public class CompanyContextFilter extends OncePerRequestFilter {
             return;
         }
         
+        // Skip filter for password pages - they're part of the login flow and user is not authenticated yet
+        if (path.endsWith("/password") || path.contains("/password")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+        
         // Extract company name from path like /{company}/customer-admin/** or /{company}/enduser/**
         String companyName = extractCompanyFromPath(path);
         
         if (companyName != null) {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            // Only validate company context for authenticated users (not during login flow)
             if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
                 String username = auth.getName();
                 if (!userCompanyMapper.validateCompanyContext(username, companyName)) {
@@ -55,6 +62,7 @@ public class CompanyContextFilter extends OncePerRequestFilter {
                     return;
                 }
             }
+            // If not authenticated, allow access (will be handled by Spring Security)
         }
         
         filterChain.doFilter(request, response);

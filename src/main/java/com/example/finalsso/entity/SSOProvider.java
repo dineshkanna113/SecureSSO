@@ -1,5 +1,7 @@
 package com.example.finalsso.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import javax.persistence.*;
 
 @Entity
@@ -19,6 +21,7 @@ public class SSOProvider {
     // Tenant relationship - null for global providers (super admin only)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tenant_id", nullable = true)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Tenant tenant;
 
     // OIDC fields

@@ -24,15 +24,17 @@ public class UserCompanyMapper {
      */
     @Transactional(readOnly = true)
     public Optional<UserInfo> getUserInfo(String username) {
-        return userRepository.findByUsername(username)
+        // Use JOIN FETCH to eagerly load tenant and avoid lazy initialization issues
+        return userRepository.findByUsernameWithTenant(username)
             .map(user -> {
-                // Initialize tenant to avoid lazy loading issues
+                // Tenant is already loaded via JOIN FETCH, safe to access
                 String companySlug = null;
                 String companyDisplayName = null;
                 Long tenantId = null;
                 if (user.getTenant() != null) {
-                    tenantId = user.getTenant().getTenantId();
-                    companyDisplayName = user.getTenant().getTenantName();
+                    var tenant = user.getTenant();
+                    tenantId = tenant.getTenantId();
+                    companyDisplayName = tenant.getTenantName();
                     companySlug = slugify(companyDisplayName);
                 }
                 return new UserInfo(
@@ -48,6 +50,7 @@ public class UserCompanyMapper {
     /**
      * Get redirect path after username entry
      */
+    @Transactional(readOnly = true)
     public String getRedirectPath(String username) {
         return getUserInfo(username)
             .map(info -> {
@@ -68,6 +71,7 @@ public class UserCompanyMapper {
     /**
      * Get password page path
      */
+    @Transactional(readOnly = true)
     public String getPasswordPagePath(String username) {
         return getUserInfo(username)
             .map(info -> {
@@ -103,10 +107,12 @@ public class UserCompanyMapper {
     /**
      * Get company name for user
      */
+    @Transactional(readOnly = true)
     public Optional<String> getCompanyName(String username) {
         return getUserInfo(username).map(info -> info.companySlug);
     }
 
+    @Transactional(readOnly = true)
     public Optional<String> getCompanyDisplayName(String username) {
         return getUserInfo(username).map(info -> info.companyDisplayName != null ? info.companyDisplayName : info.companySlug);
     }

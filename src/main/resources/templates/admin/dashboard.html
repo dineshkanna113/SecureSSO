@@ -428,17 +428,17 @@ async function saveProvider(){
     }
     const res = await fetch(id?`/api/sso/providers/${id}`:'/api/sso/providers', { method: id?'PUT':'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
     if(res.status===409){ alert('Provider name already exists'); return; }
-    if(res.ok){ 
+    if(res.ok){
         // Reset form
-        document.getElementById('saveProviderId').value=''; 
+        document.getElementById('saveProviderId').value='';
         document.getElementById('newProviderName').value='';
         typeSelect.value='';
         typeSelect.disabled = false; // Re-enable type select
         document.getElementById('newOidcFields').style.display='none';
         document.getElementById('newSamlFields').style.display='none';
         document.getElementById('newJwtFields').style.display='none';
-        nf.closeModal('addSsoModal'); 
-        loadProviders(); 
+        nf.closeModal('addSsoModal');
+        loadProviders();
     }
 }
 window.addEventListener('DOMContentLoaded', function() {
@@ -459,11 +459,11 @@ window.addEventListener('DOMContentLoaded', function() {
     const oidcCallbackUrlEl = document.getElementById('oidcCallbackUrl');
     const oidcRedirectUriCopyEl = document.getElementById('oidcRedirectUriCopy');
     const callbackUrl = baseUrl + '/sso/oauth2/callback';
-    
+
     if (oidcRedirectInput && !oidcRedirectInput.value) {
         oidcRedirectInput.placeholder = callbackUrl;
     }
-    
+
     // Update both display elements
     if (oidcCallbackUrlEl) {
         oidcCallbackUrlEl.textContent = (oidcRedirectInput && oidcRedirectInput.value) ? oidcRedirectInput.value : callbackUrl;
@@ -471,7 +471,7 @@ window.addEventListener('DOMContentLoaded', function() {
     if (oidcRedirectUriCopyEl) {
         oidcRedirectUriCopyEl.textContent = (oidcRedirectInput && oidcRedirectInput.value) ? oidcRedirectInput.value : callbackUrl;
     }
-    
+
     // Add listener to update display when user types
     if (oidcRedirectInput) {
         oidcRedirectInput.addEventListener('input', function() {
@@ -486,7 +486,7 @@ async function importOidcDiscovery(){
     if(!url) { alert('Please enter a discovery URL'); return; }
     try {
         const res = await fetch(`/api/sso/providers/oidc/discovery?url=${encodeURIComponent(url)}`);
-        if(res.ok){ 
+        if(res.ok){
             const data = await res.json();
             if(data.oidcIssuerUri) document.getElementById('newOidcIssuerUri').value = data.oidcIssuerUri||'';
             if(data.oidcAuthorizationEndpoint) document.getElementById('newOidcAuthz').value = data.oidcAuthorizationEndpoint||'';
@@ -500,7 +500,7 @@ async function importOidcDiscovery(){
             const redirectUriCopyEl = document.getElementById('oidcRedirectUriCopy');
             const baseUrl = window.location.origin;
             const callbackUrl = baseUrl + '/sso/oauth2/callback';
-            
+
             if(!redirectInput.value) {
                 redirectInput.value = callbackUrl;
             }

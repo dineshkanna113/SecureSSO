@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Email Configuration - Super Admin</title>
+    <link rel="stylesheet" th:href="@{/css/netflix.css}">
+</head>
+<body class="nf-body">
+<div class="nf-header">
+    <div style="display: flex; align-items: center; gap: 12px;">
+        <a th:href="@{/super-admin/dashboard}" style="color: #e50914; font-size: 32px; text-decoration: none;">k</a>
+        <span style="font-size: 24px; font-weight: 600;">Email Configuration</span>
+    </div>
+    <div>
+        <a class="nf-button nf-secondary" th:href="@{/super-admin/dashboard}">Back to Dashboard</a>
+    </div>
+</div>
+
+<div class="nf-container" style="max-width: 800px;">
+    <div th:if="${success}" style="background:#2ecc71;color:#fff;padding:12px 16px;border-radius:6px;margin-bottom:20px;">[[${success}]]</div>
+    <div th:if="${error}" style="background:#e50914;color:#fff;padding:12px 16px;border-radius:6px;margin-bottom:20px;">[[${error}]]</div>
+    
+    <div class="nf-card" style="padding: 24px;">
+        <h2 style="margin: 0 0 20px 0;">SMTP Configuration</h2>
+        <p style="color: #aaa; margin-bottom: 24px;">Configure your email provider settings. Default values are pre-filled with Mailtrap sandbox settings.</p>
+        
+        <form th:action="@{/super-admin/email-config}" method="post" th:object="${emailConfig}">
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <div>
+                    <label>SMTP Host *</label>
+                    <input type="text" th:field="*{host}" required placeholder="sandbox.smtp.mailtrap.io" style="width: 100%;">
+                </div>
+                
+                <div>
+                    <label>SMTP Port *</label>
+                    <input type="number" th:field="*{port}" required placeholder="2525" style="width: 100%;">
+                </div>
+                
+                <div>
+                    <label>Username *</label>
+                    <input type="text" th:field="*{username}" required placeholder="SMTP username" style="width: 100%;">
+                </div>
+                
+                <div>
+                    <label>Password *</label>
+                    <input type="password" th:field="*{password}" required placeholder="SMTP password" style="width: 100%;">
+                </div>
+                
+                <div style="display: flex; gap: 24px;">
+                    <div>
+                        <label style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" th:field="*{ssl}">
+                            <span>Enable SSL</span>
+                        </label>
+                    </div>
+                    <div>
+                        <label style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" th:field="*{tls}">
+                            <span>Enable TLS</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div>
+                    <label>From Email</label>
+                    <input type="email" th:field="*{fromEmail}" placeholder="noreply@ssolog.com" style="width: 100%;">
+                    <small style="color: #888;">Email address to use as sender</small>
+                </div>
+                
+                <div>
+                    <label>From Name</label>
+                    <input type="text" th:field="*{fromName}" placeholder="SSO Application" style="width: 100%;">
+                    <small style="color: #888;">Display name for sender</small>
+                </div>
+                
+                <div class="nf-actions">
+                    <button type="submit" class="nf-button">Save Configuration</button>
+                    <a class="nf-button nf-secondary" th:href="@{/super-admin/dashboard}">Cancel</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+</body>
+</html>
+

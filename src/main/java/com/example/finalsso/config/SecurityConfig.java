@@ -17,6 +17,7 @@ import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.header.writers.CacheControlHeadersWriter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
@@ -46,15 +47,16 @@ public class SecurityConfig {
         http
                 .csrf().disable()
                 .addFilterBefore(new CompanyContextFilter(userCompanyMapper), 
-                                org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
+                                UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
                         // Public routes
-                        .antMatchers("/register", "/css/**", "/js/**", "/images/**", "/login", "/login/username", 
+                        .antMatchers("/register", "/register/**", "/css/**", "/js/**", "/images/**", "/login", "/login/username", 
                                      "/login/sso", "/sso/oauth2/authorize", "/sso/oauth2/callback", 
                                      "/sso/saml2/authenticate", "/sso/saml2/acs", "/sso/jwt/authenticate", 
                                      "/sso/jwt/callback", "/sso/jwt/login", "/sso/jwt/verify", 
                                      "/test/sso/jwt", "/test/sso/jwt/**", "/test/sso/oidc", "/test/jwt/result",
                                      "/error", "/access-denied").permitAll()
+                        .antMatchers("/bug-report").permitAll()
                         // Password pages (permit all - will be validated in controller)
                         .antMatchers("/super-admin/password", "/*/password").permitAll()
                         .antMatchers(HttpMethod.POST, "/super-admin/password", "/*/password").permitAll()
@@ -68,6 +70,8 @@ public class SecurityConfig {
                         .antMatchers("/*/enduser/**").hasAnyRole("CUSTOMER_ADMIN", "END_USER")
                         // Legacy API routes (for backward compatibility)
                         .antMatchers(HttpMethod.GET, "/api/sso/providers/**").permitAll()
+                        .antMatchers(HttpMethod.GET, "/api/users/exists").permitAll()
+                        .antMatchers(HttpMethod.GET, "/api/users/tenants/exists").permitAll()
                         .antMatchers("/api/**").hasAnyRole("SUPER_ADMIN", "CUSTOMER_ADMIN")
                         // Legacy admin routes (for backward compatibility)
                         .antMatchers("/admin/**").hasAnyRole("SUPER_ADMIN", "CUSTOMER_ADMIN")
