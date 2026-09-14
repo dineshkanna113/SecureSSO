@@ -1,6 +1,8 @@
-target/
 .git
 .gitignore
-README.md
+.mvn
+target
 Dockerfile
-    
+docker-compose.yml
+README.md
+*.log

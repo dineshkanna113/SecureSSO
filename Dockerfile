@@ -1,33 +1,27 @@
-# Multi-stage build: Stage 1 - Build
-FROM eclipse-temurin:21-jdk AS build
-
+# AccessHub Multi-Tenant IAM Platform Dockerfile
+FROM eclipse-temurin:21-jdk-alpine AS build
 WORKDIR /app
 
-# Copy Maven wrapper and pom.xml
-COPY mvnw* .
-COPY pom.xml .
-# Copy .mvn directory if it exists (Maven wrapper will download it if missing)
+# Copy Maven wrapper & pom.xml
+COPY mvnw .
 COPY .mvn .mvn
+COPY pom.xml .
 
-# Make mvnw executable and download dependencies (cached layer if pom.xml doesn't change)
-RUN chmod +x ./mvnw && ./mvnw dependency:go-offline -B
+# Download dependencies
+RUN ./mvnw dependency:go-offline -B
 
-# Copy source code
-COPY src ./src
-
-# Build the application
+# Copy source code and build package
+COPY src src
 RUN ./mvnw clean package -DskipTests
 
-# Stage 2: Runtime
-FROM eclipse-temurin:21-jre
-
+# Production Runtime Stage
+FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
+VOLUME /tmp
 
-# Copy the built JAR from build stage
-COPY --from=build /app/target/ssolog-0.0.1-SNAPSHOT.jar app.jar
+# Copy compiled jar from build stage
+COPY --from=build /app/target/accesshub-iam-1.0.0-SNAPSHOT.jar app.jar
 
-# Expose port 8080
 EXPOSE 8080
 
-# Run the application
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]
