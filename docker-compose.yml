@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  accesshub-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: accesshub-api
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/accesshub_db
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - JWT_SECRET=404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+      - OPENAI_API_KEY=mock-key
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - accesshub-network
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: accesshub-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=accesshub_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d accesshub_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - accesshub-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: accesshub-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - accesshub-network
+    restart: unless-stopped
+
+networks:
+  accesshub-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
